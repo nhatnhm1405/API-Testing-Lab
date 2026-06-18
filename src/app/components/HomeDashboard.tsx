@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { CheckCircle2, Lock, ChevronRight, Zap, Play, BookOpen, Sparkles, ArrowRight, Send, GraduationCap, Layers, RotateCcw, AlertCircle } from "lucide-react";
 import { TactileButton } from "./TactileButton";
+import { GitHubLink } from "./GitHubLink";
 import { MODULES, USER_NAME, USER_STREAK, computeModuleStatus, getCurrentModule } from "../data/courseData";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
@@ -310,6 +311,11 @@ export function HomeDashboard({ onNavigate, completedLessons, xp, mistakes, onRe
             </div>
             <ChevronRight size={16} color="#A7A3AD" />
           </motion.button>
+
+          {/* GitHub repo link */}
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4, delay: .3 }}>
+            <GitHubLink variant="card" label="View source on GitHub" />
+          </motion.div>
         </div>
       </div>
     </div>

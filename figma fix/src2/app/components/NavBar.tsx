@@ -1,5 +1,4 @@
 import { Zap, Menu, Code2 } from "lucide-react";
-import { GitHubLink } from "./GitHubLink";
 
 interface NavBarProps {
   streak?: number;
@@ -51,8 +50,6 @@ export function NavBar({ streak = 15, xp = 340, onMenu, onLogoClick }: NavBarPro
           <Zap size={14} fill="#B9E534" color="#B9E534" strokeWidth={0}/>
           <span style={{ fontSize: '13px', fontWeight: 700, color: '#5A700A', fontFamily: 'var(--atl-font-body)' }}>{streak}</span>
         </div>
-
-        <GitHubLink variant="icon" />
 
         <button
           onClick={onMenu}
