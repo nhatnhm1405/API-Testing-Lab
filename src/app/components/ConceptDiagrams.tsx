@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { ChevronLeft, ArrowRight, RotateCcw } from "lucide-react";
 import { PhoApiFlow } from "./PhoApiFlow";
 import { ApiStoryFlow } from "./ApiStoryFlow";
-import { ApiTestingLab } from "./ApiTestingLab";
+import { APISimulator } from "./APISimulator";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams';
 
@@ -257,7 +257,7 @@ export function ConceptDiagrams({ onNavigate }: ConceptDiagramsProps) {
           {stage === 'lab' && (
             <motion.div key="lab" initial={{ opacity:0,y:16 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0,y:-12 }} transition={{ duration:.35 }}
               style={{ display:'flex',flexDirection:'column',gap:16 }}>
-              <ApiTestingLab/>
+              <APISimulator/>
               <div style={{ display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap' }}>
                 <button onClick={() => setStage('recap')}
                   style={{ display:'inline-flex',alignItems:'center',gap:8,background:'#FFF',border:'1.5px solid #ECE8E1',borderRadius:'100px',padding:'10px 18px',cursor:'pointer',fontFamily:'var(--atl-font-body)',fontSize:'13px',fontWeight:700,color:'#6B6A7B',boxShadow:'0 1px 4px rgba(28,27,42,.06)' }}>
