@@ -1,13 +1,14 @@
 import { motion } from "motion/react";
-import { CheckCircle2, Lock, Play, ChevronLeft, Zap } from "lucide-react";
+import { CheckCircle2, Lock, Play, ChevronLeft, Zap, RotateCcw } from "lucide-react";
 import { Mascot } from "./Mascot";
 import { MODULES, computeModuleStatus } from "../data/courseData";
 
-type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams';
+type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
 
 interface LearningPathProps {
   onNavigate: (v: View) => void;
   completedLessons: Set<string>;
+  onRestartModule: (moduleIdx: number) => void;
 }
 
 function CandyNode({ status, accent, lessonTitle, onClick, showMascot, offset }: {
@@ -49,7 +50,7 @@ function CandyNode({ status, accent, lessonTitle, onClick, showMascot, offset }:
   );
 }
 
-export function LearningPath({ onNavigate, completedLessons }: LearningPathProps) {
+export function LearningPath({ onNavigate, completedLessons, onRestartModule }: LearningPathProps) {
   return (
     <div style={{ minHeight:'100%',background:'var(--atl-canvas)' }}>
       <div style={{ position:'fixed',top:0,right:0,width:300,height:300,background:'radial-gradient(circle,rgba(46,91,255,.04),transparent 70%)',pointerEvents:'none',zIndex:0 }}/>
@@ -90,6 +91,15 @@ export function LearningPath({ onNavigate, completedLessons }: LearningPathProps
                   <span style={{ fontFamily:'var(--atl-font-body)',fontSize:'11px',fontWeight:600,color:mod.accent,background:`${mod.accent}15`,borderRadius:'100px',padding:'2px 8px' }}>
                     {doneCount}/{mod.lessons.length}
                   </span>
+                )}
+                {status === 'completed' && (
+                  <motion.button
+                    whileHover={{ scale:1.12 }} whileTap={{ scale:.9 }}
+                    onClick={() => onRestartModule(mi)}
+                    title="Restart module"
+                    style={{ display:'flex',alignItems:'center',justifyContent:'center',width:24,height:24,borderRadius:'50%',border:'none',background:`${mod.accent}1F`,color:mod.accent,cursor:'pointer',flexShrink:0 }}>
+                    <RotateCcw size={13} strokeWidth={2.5}/>
+                  </motion.button>
                 )}
               </motion.div>
 

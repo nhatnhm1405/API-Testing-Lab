@@ -86,6 +86,26 @@ export function getCurrentModule(completedLessons: Set<string>) {
   return { module: MODULES[safeIdx], index: safeIdx };
 }
 
+// Locate a lesson (and its module) by id — used by the mistakes review.
+export function findLesson(lessonId: string) {
+  for (let mi = 0; mi < MODULES.length; mi++) {
+    const lesson = MODULES[mi].lessons.find(l => l.id === lessonId);
+    if (lesson) return { moduleIdx: mi, module: MODULES[mi], lesson };
+  }
+  return null;
+}
+
+// A short, human-readable prompt for any exercise type.
+export function getLessonPrompt(data: LessonData): string {
+  switch (data.type) {
+    case 'mcq':             return data.question;
+    case 'fill-blank':      return data.instruction ?? data.template;
+    case 'drag-categorize': return data.instruction;
+    case 'drag-order':      return data.instruction;
+    case 'postman':         return data.task;
+  }
+}
+
 // ── Course data ───────────────────────────────────────────────────
 
 export const MODULES: Module[] = [

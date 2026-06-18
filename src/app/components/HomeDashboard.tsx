@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { CheckCircle2, Lock, ChevronRight, Zap, Play, BookOpen, Sparkles, ArrowRight } from "lucide-react";
+import { CheckCircle2, Lock, ChevronRight, Zap, Play, BookOpen, Sparkles, ArrowRight, Send, GraduationCap, Layers, RotateCcw, AlertCircle } from "lucide-react";
 import { TactileButton } from "./TactileButton";
 import { MODULES, USER_NAME, USER_STREAK, computeModuleStatus, getCurrentModule } from "../data/courseData";
 
-type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams';
+type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
 
 interface HomeDashboardProps {
   onNavigate: (v: View) => void;
   completedLessons: Set<string>;
   xp: number;
+  mistakes: Set<string>;
+  onRestartModule: (moduleIdx: number) => void;
 }
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -38,7 +40,7 @@ function LessonRow({ title, done, current }: { title: string; done: boolean; cur
   );
 }
 
-export function HomeDashboard({ onNavigate, completedLessons, xp }: HomeDashboardProps) {
+export function HomeDashboard({ onNavigate, completedLessons, xp, mistakes, onRestartModule }: HomeDashboardProps) {
   const { index: currentIdx } = getCurrentModule(completedLessons);
   // Which module the RECOMMENDED card previews. null = follow the current module.
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
@@ -145,16 +147,61 @@ export function HomeDashboard({ onNavigate, completedLessons, xp }: HomeDashboar
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4, delay: .14 }}
             style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {[
-              { label: 'Lessons done', value: completedLessons.size, emoji: '📚' },
-              { label: 'Modules', value: `${currentIdx + 1}/4`, emoji: '🎯' },
+              { label: 'Lessons done', value: completedLessons.size, Icon: GraduationCap, accent: '#2E5BFF', tint: '#EEF3FF', border: '#DCE6FF' },
+              { label: 'Modules', value: `${currentIdx + 1}/4`, Icon: Layers, accent: '#16A34A', tint: '#ECFDF3', border: '#C7F0D6' },
             ].map(s => (
               <div key={s.label} style={{ background: '#FFF', borderRadius: 16, padding: 16, border: '1.5px solid #F2EFEA', boxShadow: '0 1px 2px rgba(28,27,42,.05),0 4px 12px rgba(28,27,42,.04)' }}>
-                <span style={{ fontSize: 22, display: 'block', marginBottom: 6 }}>{s.emoji}</span>
+                <div style={{ width: 36, height: 36, borderRadius: 11, background: s.tint, border: `1.5px solid ${s.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+                  <s.Icon size={18} color={s.accent} strokeWidth={2.4} />
+                </div>
                 <span style={{ fontFamily: 'var(--atl-font-display)', fontSize: '24px', fontWeight: 800, color: '#1C1B2A', display: 'block', lineHeight: 1 }}>{s.value}</span>
                 <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '12px', color: '#6B6A7B', fontWeight: 500 }}>{s.label}</span>
               </div>
             ))}
           </motion.div>
+
+          {/* API Testing Lab — direct entry */}
+          <motion.button
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4, delay: .18 }}
+            whileHover={{ y: -3, boxShadow: '0 4px 12px rgba(46,91,255,.14),0 22px 50px rgba(46,91,255,.20)' }}
+            whileTap={{ scale: .99 }}
+            onClick={() => onNavigate('simulator')}
+            style={{ position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: 'pointer', border: '1.5px solid #BFD0FF', borderRadius: 20, padding: '18px 20px', background: 'linear-gradient(135deg,#EEF3FF,#E5ECFF)', display: 'flex', alignItems: 'center', gap: 16, boxShadow: '0 1px 2px rgba(28,27,42,.05),0 10px 28px rgba(46,91,255,.12)' }}>
+            <div style={{ position: 'absolute', right: -24, top: -30, width: 130, height: 130, background: 'radial-gradient(circle,rgba(46,91,255,.12),transparent 70%)', pointerEvents: 'none' }} />
+            <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+              style={{ width: 52, height: 52, flexShrink: 0, borderRadius: 16, background: 'linear-gradient(135deg,#2E5BFF,#5B7BFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.25),0 6px 16px rgba(46,91,255,.30)', zIndex: 1 }}>
+              <Send size={22} color="white" />
+            </motion.div>
+            <div style={{ flex: 1, minWidth: 0, zIndex: 1 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#FFF', border: '1.5px solid #BFD0FF', borderRadius: '100px', padding: '2px 9px', marginBottom: 6 }}>
+                <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '10px', fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#2E5BFF' }}>Interactive</span>
+              </div>
+              <h3 style={{ fontFamily: 'var(--atl-font-display)', fontSize: '18px', fontWeight: 800, color: '#1C1B2A', margin: '0 0 2px', letterSpacing: '-0.02em', lineHeight: 1.15 }}>API Testing Lab</h3>
+              <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: '13px', color: '#6B6A7B', margin: 0, fontWeight: 500 }}>Send real requests · test all 4 methods</p>
+            </div>
+            <ArrowRight size={18} color="#2E5BFF" style={{ flexShrink: 0, zIndex: 1 }} />
+          </motion.button>
+
+          {/* Mistakes to review — only when there are noted mistakes */}
+          {mistakes.size > 0 && (
+            <motion.button
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4, delay: .22 }}
+              whileHover={{ y: -3, boxShadow: '0 4px 12px rgba(244,63,94,.12),0 22px 50px rgba(244,63,94,.18)' }}
+              whileTap={{ scale: .99 }}
+              onClick={() => onNavigate('review')}
+              style={{ position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: 'pointer', border: '1.5px solid #FECDD3', borderRadius: 20, padding: '18px 20px', background: 'linear-gradient(135deg,#FFF5F6,#FFEAEC)', display: 'flex', alignItems: 'center', gap: 16, boxShadow: '0 1px 2px rgba(28,27,42,.05),0 10px 28px rgba(244,63,94,.10)' }}>
+              <div style={{ width: 52, height: 52, flexShrink: 0, borderRadius: 16, background: 'linear-gradient(135deg,#F43F5E,#FB7185)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.25),0 6px 16px rgba(244,63,94,.30)', zIndex: 1 }}>
+                <AlertCircle size={24} color="white" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0, zIndex: 1 }}>
+                <h3 style={{ fontFamily: 'var(--atl-font-display)', fontSize: '18px', fontWeight: 800, color: '#1C1B2A', margin: '0 0 2px', letterSpacing: '-0.02em', lineHeight: 1.15 }}>Review your mistakes</h3>
+                <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: '13px', color: '#6B6A7B', margin: 0, fontWeight: 500 }}>
+                  {mistakes.size} question{mistakes.size === 1 ? '' : 's'} to revisit · with explanations
+                </p>
+              </div>
+              <ChevronRight size={18} color="#E11D48" style={{ flexShrink: 0, zIndex: 1 }} />
+            </motion.button>
+          )}
 
         </div>
 
@@ -210,9 +257,18 @@ export function HomeDashboard({ onNavigate, completedLessons, xp }: HomeDashboar
 
               <div style={{ padding: '20px 24px' }}>
                 {activeStatus === 'completed' ? (
-                  <TactileButton variant="continue" fullWidth onClick={() => onNavigate('path')}>
-                    Review in learning path →
-                  </TactileButton>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      onClick={() => onRestartModule(modIdx)}
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, flexShrink: 0, background: '#FFF', border: '1.5px solid #ECE8E1', borderRadius: '100px', padding: '0 18px', height: 48, cursor: 'pointer', fontFamily: 'var(--atl-font-body)', fontSize: '14px', fontWeight: 700, color: '#6B6A7B', boxShadow: '0 1px 3px rgba(28,27,42,.06)' }}>
+                      <RotateCcw size={15} /> Restart module
+                    </button>
+                    <div style={{ flex: 1 }}>
+                      <TactileButton variant="continue" fullWidth onClick={() => onNavigate('path')}>
+                        Review in learning path →
+                      </TactileButton>
+                    </div>
+                  </div>
                 ) : (
                   <TactileButton variant="primary" fullWidth onClick={() => onNavigate('lesson')}>
                     {mod.lessons.some(l => completedLessons.has(l.id)) ? 'Continue Learning →' : 'Start Lesson →'}

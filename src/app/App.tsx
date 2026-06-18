@@ -7,9 +7,11 @@ import { LessonScreen } from "./components/LessonScreen";
 import { ResultScreen } from "./components/ResultScreen";
 import { SkillCheckScreen } from "./components/SkillCheckScreen";
 import { ConceptDiagrams } from "./components/ConceptDiagrams";
+import { APISimulator } from "./components/APISimulator";
+import { MistakesReview } from "./components/MistakesReview";
 import { MODULES, getCurrentModule, USER_STREAK, USER_XP } from "./data/courseData";
 
-export type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams';
+export type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
 
 const NO_NAV: View[] = ['lesson'];
 
@@ -17,6 +19,8 @@ export default function App() {
   const [view,             setView]             = useState<View>('home');
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
   const [xp,               setXP]               = useState(USER_XP);
+  // Lessons the user answered incorrectly (noted for review)
+  const [mistakes,         setMistakes]         = useState<Set<string>>(new Set());
   // Module whose completion screen is currently shown
   const [resultModuleIdx,  setResultModuleIdx]  = useState(0);
 
@@ -49,10 +53,32 @@ export default function App() {
     }
   };
 
-  const resultMod   = MODULES[resultModuleIdx];
-  const resultTotal = resultMod.lessons.length;
-  const resultXP    = resultMod.lessons.reduce((sum, l) => sum + l.xp, 0);
-  const isLastMod   = resultModuleIdx === MODULES.length - 1;
+  const noteMistake = (lessonId: string) => {
+    setMistakes(prev => prev.has(lessonId) ? prev : new Set([...prev, lessonId]));
+  };
+
+  // Wipe a module's progress (and its noted mistakes) and replay it from lesson 1.
+  const restartModule = (moduleIdx: number) => {
+    const ids = MODULES[moduleIdx].lessons.map(l => l.id);
+    setCompletedLessons(prev => {
+      const n = new Set(prev);
+      ids.forEach(id => n.delete(id));
+      return n;
+    });
+    setMistakes(prev => {
+      const n = new Set(prev);
+      ids.forEach(id => n.delete(id));
+      return n;
+    });
+    setView('lesson');
+  };
+
+  const resultMod        = MODULES[resultModuleIdx];
+  const resultTotal      = resultMod.lessons.length;
+  const resultMistakeIds = resultMod.lessons.map(l => l.id).filter(id => mistakes.has(id));
+  const resultScore      = resultTotal - resultMistakeIds.length;
+  const resultXP         = resultMod.lessons.filter(l => !mistakes.has(l.id)).reduce((sum, l) => sum + l.xp, 0);
+  const isLastMod        = resultModuleIdx === MODULES.length - 1;
 
   return (
     <div style={{ width:'100%', minHeight:'100vh', background:'var(--atl-canvas)', fontFamily:'var(--atl-font-body)', display:'flex', flexDirection:'column' }}>
@@ -64,12 +90,12 @@ export default function App() {
         <AnimatePresence mode="wait">
           {view === 'home' && (
             <Screen key="home">
-              <HomeDashboard onNavigate={navigate} completedLessons={completedLessons} xp={xp}/>
+              <HomeDashboard onNavigate={navigate} completedLessons={completedLessons} xp={xp} mistakes={mistakes} onRestartModule={restartModule}/>
             </Screen>
           )}
           {view === 'path' && (
             <Screen key="path">
-              <LearningPath onNavigate={navigate} completedLessons={completedLessons}/>
+              <LearningPath onNavigate={navigate} completedLessons={completedLessons} onRestartModule={restartModule}/>
             </Screen>
           )}
           {view === 'lesson' && (
@@ -77,6 +103,7 @@ export default function App() {
               <LessonScreen
                 onNavigate={navigate}
                 onLessonComplete={handleLessonComplete}
+                onMistake={noteMistake}
                 completedLessons={completedLessons}
                 streak={USER_STREAK}
               />
@@ -89,10 +116,12 @@ export default function App() {
                 moduleNumber={resultModuleIdx + 1}
                 moduleTitle={resultMod.title}
                 isLastModule={isLastMod}
-                score={resultTotal}
+                score={resultScore}
                 total={resultTotal}
                 xpEarned={resultXP}
                 streak={USER_STREAK}
+                moduleMistakes={resultMistakeIds}
+                onRestartModule={() => restartModule(resultModuleIdx)}
               />
             </Screen>
           )}
@@ -111,6 +140,16 @@ export default function App() {
           {view === 'diagrams' && (
             <Screen key="diagrams">
               <ConceptDiagrams onNavigate={navigate}/>
+            </Screen>
+          )}
+          {view === 'simulator' && (
+            <Screen key="simulator">
+              <APISimulator onClose={() => navigate('home')}/>
+            </Screen>
+          )}
+          {view === 'review' && (
+            <Screen key="review">
+              <MistakesReview onNavigate={navigate} mistakes={mistakes}/>
             </Screen>
           )}
         </AnimatePresence>

@@ -13,17 +13,18 @@ import { MiniPostman } from "./MiniPostman";
 import { getCurrentModule } from "../data/courseData";
 import type { MCQData, FillBlankData, DragCategorizeData, DragOrderData, PostmanData } from "../data/courseData";
 
-type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams';
+type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
 type Phase = 'answering' | 'correct' | 'wrong';
 
 interface LessonScreenProps {
   onNavigate: (v: View) => void;
   onLessonComplete: (lessonId: string, xp: number) => void;
+  onMistake: (lessonId: string) => void;
   completedLessons: Set<string>;
   streak: number;
 }
 
-export function LessonScreen({ onNavigate, onLessonComplete, completedLessons, streak }: LessonScreenProps) {
+export function LessonScreen({ onNavigate, onLessonComplete, onMistake, completedLessons, streak }: LessonScreenProps) {
   const { module: mod } = getCurrentModule(completedLessons);
   const lessonIdx = Math.min(
     mod.lessons.findIndex(l => !completedLessons.has(l.id)),
@@ -45,6 +46,7 @@ export function LessonScreen({ onNavigate, onLessonComplete, completedLessons, s
   const isPostman = type === 'postman';
 
   const handleExerciseResult = (correct: boolean) => {
+    if (!correct) onMistake(lesson.id);
     setPhase(correct ? 'correct' : 'wrong');
   };
 
@@ -53,7 +55,9 @@ export function LessonScreen({ onNavigate, onLessonComplete, completedLessons, s
     if (type === 'mcq') {
       if (selected === null) return;
       const mcq = lesson.data as MCQData;
-      setPhase(selected === mcq.correctIndex ? 'correct' : 'wrong');
+      const correct = selected === mcq.correctIndex;
+      if (!correct) onMistake(lesson.id);
+      setPhase(correct ? 'correct' : 'wrong');
     } else {
       setCheckTrigger(t => t + 1);
     }
@@ -61,7 +65,8 @@ export function LessonScreen({ onNavigate, onLessonComplete, completedLessons, s
 
   const handleContinue = () => {
     if (showWhy) { setShowWhy(false); }
-    onLessonComplete(lesson.id, lesson.xp);
+    // Only award XP when the answer was correct
+    onLessonComplete(lesson.id, isCorrect ? lesson.xp : 0);
     // Reset for next lesson
     setPhase('answering');
     setIsReady(false);

@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import confetti from "canvas-confetti";
 import { TactileButton } from "./TactileButton";
-import { Zap, Star, Home, ArrowRight, Map } from "lucide-react";
+import { Zap, Star, Home, ArrowRight, Map, RotateCcw, AlertCircle, Lightbulb } from "lucide-react";
+import { findLesson, getLessonPrompt } from "../data/courseData";
 
-type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams';
+type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
 
 interface ResultScreenProps {
   onNavigate: (v: View) => void;
@@ -15,6 +16,8 @@ interface ResultScreenProps {
   total: number;
   xpEarned: number;
   streak: number;
+  moduleMistakes: string[];
+  onRestartModule: () => void;
 }
 
 function Trophy() {
@@ -40,7 +43,7 @@ function Trophy() {
   );
 }
 
-export function ResultScreen({ onNavigate, moduleNumber, moduleTitle, isLastModule, score, total, xpEarned, streak }: ResultScreenProps) {
+export function ResultScreen({ onNavigate, moduleNumber, moduleTitle, isLastModule, score, total, xpEarned, streak, moduleMistakes, onRestartModule }: ResultScreenProps) {
   const [displayScore, setDisplayScore] = useState(0);
   const [displayXP,    setDisplayXP]    = useState(0);
   const fired = useRef(false);
@@ -123,6 +126,38 @@ export function ResultScreen({ onNavigate, moduleNumber, moduleTitle, isLastModu
           </motion.div>
         )}
 
+        {/* Mistakes from this module — list + explanation */}
+        {moduleMistakes.length > 0 && (
+          <motion.div initial={{ opacity:0,y:12 }} animate={{ opacity:1,y:0 }} transition={{ duration:.4,delay:.68 }}
+            style={{ width:'100%',marginBottom:20 }}>
+            <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:10 }}>
+              <AlertCircle size={15} color="#E11D48"/>
+              <span style={{ fontFamily:'var(--atl-font-body)',fontSize:'12px',fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',color:'#9F1239' }}>
+                Review {moduleMistakes.length} mistake{moduleMistakes.length === 1 ? '' : 's'}
+              </span>
+            </div>
+            <div style={{ display:'flex',flexDirection:'column',gap:10 }}>
+              {moduleMistakes.map(id => {
+                const found = findLesson(id);
+                if (!found) return null;
+                return (
+                  <div key={id} style={{ background:'#FFF',borderRadius:16,padding:'14px 16px',border:'1.5px solid #FECDD3',boxShadow:'0 1px 3px rgba(28,27,42,.05)',textAlign:'left' }}>
+                    <p style={{ fontFamily:'var(--atl-font-display)',fontSize:'14px',fontWeight:700,color:'#1C1B2A',margin:'0 0 8px',lineHeight:1.4 }}>
+                      {getLessonPrompt(found.lesson.data)}
+                    </p>
+                    <div style={{ display:'flex',gap:8,background:'linear-gradient(135deg,#FFFBEB,#FEF3C7)',border:'1.5px solid #FDE68A',borderRadius:10,padding:'9px 12px' }}>
+                      <Lightbulb size={14} color="#D97706" style={{ flexShrink:0,marginTop:1 }}/>
+                      <p style={{ fontFamily:'var(--atl-font-body)',fontSize:'12px',color:'#92400E',margin:0,lineHeight:1.5,fontWeight:500 }}>
+                        {found.lesson.data.explanation}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
         {/* CTAs */}
         <motion.div initial={{ opacity:0,y:12 }} animate={{ opacity:1,y:0 }} transition={{ duration:.4,delay:.75 }}
           style={{ display:'flex',gap:12,width:'100%',marginTop:isLastModule?12:0 }}>
@@ -139,6 +174,14 @@ export function ResultScreen({ onNavigate, moduleNumber, moduleTitle, isLastModu
             )}
           </div>
         </motion.div>
+
+        {/* Replay module */}
+        <motion.button initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ duration:.4,delay:.85 }}
+          whileHover={{ y:-1 }} whileTap={{ scale:.98 }}
+          onClick={onRestartModule}
+          style={{ marginTop:14,display:'inline-flex',alignItems:'center',gap:7,background:'none',border:'none',cursor:'pointer',fontFamily:'var(--atl-font-body)',fontSize:'14px',fontWeight:700,color:'#6B6A7B' }}>
+          <RotateCcw size={15}/> Replay this module
+        </motion.button>
       </div>
     </div>
   );
