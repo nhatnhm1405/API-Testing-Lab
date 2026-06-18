@@ -4,7 +4,7 @@ Một web app học **API & API Testing** theo phong cách tương tác (kiểu 
 học qua câu chuyện, bài tập kéo–thả, và một "phòng lab" gửi request mô phỏng.
 Giao diện tiếng Anh, hiệu ứng động, tông "giấy ấm".
 
-> 📖 **Tài liệu này là hướng dẫn trải nghiệm dành cho thầy HungLD.** Mục dưới đi qua
+>  **Tài liệu này là hướng dẫn trải nghiệm, app chưa đi đến giai đoạn hoàn thiện thật sự.** Mục dưới đi qua
 > lần lượt **các chức năng đã demo được**, kèm gợi ý đường đi trong app. Những phần
 > **chưa hoàn thiện / đang phát triển** được ghi chú ở cuối.
 
@@ -27,7 +27,7 @@ npm run build    # xuất ra thư mục dist/
 
 ---
 
-## 2. Lối đi nhanh (tour gợi ý cho thầy)
+## 2. Lối đi nhanh (tour gợi ý)
 
 Vào app sẽ ở màn **Home**. Trình tự trải nghiệm khuyến nghị:
 
