@@ -86,10 +86,13 @@ export function FillBlankExercise({
         <p style={{ fontFamily:'var(--atl-font-body)',fontSize:'11px',fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:'#A7A3AD',marginBottom:10 }}>
           Word Bank
         </p>
-        <div style={{ display:'flex',gap:8,flexWrap:'wrap' }}>
+        <div style={{ display:'flex',gap:8,flexWrap:'wrap',minHeight:42 }}>
           {bank.map(word => (
             <motion.button
               key={word}
+              layoutId={word}
+              layout
+              transition={{ type:'spring', stiffness:500, damping:34 }}
               whileHover={isAnswering ? { y:-2 } : {}}
               whileTap={isAnswering ? { scale:.95 } : {}}
               onClick={() => isAnswering && fillNext(word)}
@@ -98,7 +101,6 @@ export function FillBlankExercise({
                 color:'#1C1B2A',background:'#F2EFEA',border:'1.5px solid #ECE8E1',
                 borderRadius:'100px',padding:'7px 18px',
                 cursor:isAnswering ? 'pointer' : 'default',
-                transition:'background .15s',
               }}
             >
               {word}
@@ -126,21 +128,38 @@ function BlankSlot({ value, correct, onClick, interactive }: {
 
   return (
     <motion.span
+      layout
+      transition={{ type:'spring', stiffness:500, damping:34 }}
       animate={isWrong ? { x:[0,-7,7,-5,5,-2,2,0], transition:{ duration:.45 } } : {}}
       onClick={onClick}
       style={{
         display:'inline-flex',alignItems:'center',justifyContent:'center',
-        minWidth:100,padding:'2px 14px',margin:'0 5px',
-        borderRadius:8,
+        verticalAlign:'middle',
+        minWidth:108,minHeight:40,padding:value ? 3 : '2px 14px',margin:'0 5px',
+        borderRadius:12,
         cursor: interactive ? 'pointer' : 'default',
-        fontFamily:'var(--atl-font-body)',fontSize:'17px',fontWeight:700,
-        background: isCorrect ? '#ECFDF3' : isWrong ? '#FFF1F2' : value ? '#EEF2FF' : 'transparent',
-        border: `2px ${value ? 'solid' : 'dashed'} ${isCorrect ? '#22C55E' : isWrong ? '#F43F5E' : value ? '#2E5BFF' : '#C4BDB0'}`,
-        color: isCorrect ? '#15803D' : isWrong ? '#BE123C' : value ? '#1E40AF' : 'transparent',
-        transition:'background .2s,border-color .2s',
+        background: value ? 'transparent' : '#FAF7F2',
+        border: `2px dashed ${value ? 'transparent' : '#C4BDB0'}`,
+        transition:'border-color .2s',
       }}
     >
-      {value ?? '     '}
+      {value && (
+        <motion.span
+          layoutId={value}
+          transition={{ type:'spring', stiffness:500, damping:34 }}
+          style={{
+            display:'inline-flex',alignItems:'center',justifyContent:'center',
+            padding:'7px 18px',borderRadius:'100px',whiteSpace:'nowrap',
+            fontFamily:'var(--atl-font-body)',fontSize:'15px',fontWeight:600,
+            background: isCorrect ? '#ECFDF3' : isWrong ? '#FFF1F2' : '#EEF2FF',
+            border:`1.5px solid ${isCorrect ? '#22C55E' : isWrong ? '#F43F5E' : '#2E5BFF'}`,
+            color: isCorrect ? '#15803D' : isWrong ? '#BE123C' : '#1E40AF',
+            boxShadow:'0 2px 8px rgba(46,91,255,.14)',
+          }}
+        >
+          {value}
+        </motion.span>
+      )}
     </motion.span>
   );
 }
