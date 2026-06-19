@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { CheckCircle2, Lock, ChevronRight, Zap, Play, BookOpen, Sparkles, ArrowRight, Send, GraduationCap, Layers, RotateCcw, AlertCircle } from "lucide-react";
 import { TactileButton } from "./TactileButton";
 import { GitHubLink } from "./GitHubLink";
+import { useIsMobile } from "./ui/use-mobile";
 import { MODULES, USER_NAME, USER_STREAK, computeModuleStatus, getCurrentModule } from "../data/courseData";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
@@ -42,6 +43,7 @@ function LessonRow({ title, done, current }: { title: string; done: boolean; cur
 }
 
 export function HomeDashboard({ onNavigate, completedLessons, xp, mistakes, onRestartModule }: HomeDashboardProps) {
+  const isMobile = useIsMobile();
   const { index: currentIdx } = getCurrentModule(completedLessons);
   // Which module the RECOMMENDED card previews. null = follow the current module.
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
@@ -57,13 +59,13 @@ export function HomeDashboard({ onNavigate, completedLessons, xp, mistakes, onRe
       <div style={{ position: 'absolute', bottom: -80, left: -80, width: 300, height: 300, background: 'radial-gradient(circle,rgba(43,212,107,.05),transparent 70%)', pointerEvents: 'none' }} />
 
       {/* ── Featured: How API works (interactive story) ── */}
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '28px 24px 0', position: 'relative' }}>
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: isMobile ? '20px 16px 0' : '28px 24px 0', position: 'relative' }}>
         <motion.button
           initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45 }}
           whileHover={{ y: -3, boxShadow: '0 4px 12px rgba(194,65,12,.10),0 22px 50px rgba(124,58,237,.16)' }}
           whileTap={{ scale: .995 }}
           onClick={() => onNavigate('diagrams')}
-          style={{ position: 'relative', overflow: 'hidden', width: '100%', textAlign: 'left', cursor: 'pointer', border: '1.5px solid #FBD9B9', borderRadius: 24, padding: '22px 26px', background: 'linear-gradient(115deg,#FFF6ED 0%,#FDEFEF 38%,#EEF1FF 100%)', display: 'flex', alignItems: 'center', gap: 22, boxShadow: '0 2px 8px rgba(28,27,42,.05),0 14px 40px rgba(124,58,237,.10)' }}>
+          style={{ position: 'relative', overflow: 'hidden', width: '100%', textAlign: 'left', cursor: 'pointer', border: '1.5px solid #FBD9B9', borderRadius: 24, padding: isMobile ? '18px 18px' : '22px 26px', background: 'linear-gradient(115deg,#FFF6ED 0%,#FDEFEF 38%,#EEF1FF 100%)', display: 'flex', alignItems: 'center', gap: isMobile ? 14 : 22, boxShadow: '0 2px 8px rgba(28,27,42,.05),0 14px 40px rgba(124,58,237,.10)' }}>
 
           {/* floating decorative emojis */}
           {[
@@ -89,19 +91,19 @@ export function HomeDashboard({ onNavigate, completedLessons, xp, mistakes, onRe
               <Sparkles size={11} color="#C2410C" />
               <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '10px', fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#C2410C' }}>Start here · Interactive</span>
             </div>
-            <h2 style={{ fontFamily: 'var(--atl-font-display)', fontSize: '22px', fontWeight: 800, color: '#1C1B2A', margin: '0 0 4px', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+            <h2 style={{ fontFamily: 'var(--atl-font-display)', fontSize: isMobile ? '18px' : '22px', fontWeight: 800, color: '#1C1B2A', margin: '0 0 4px', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
               How does an API actually work?
             </h2>
           </div>
 
           {/* CTA */}
-          <div style={{ flexShrink: 0, zIndex: 1, display: 'flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#2E5BFF,#5B7BFF)', color: '#FFF', borderRadius: '100px', padding: '12px 22px', fontFamily: 'var(--atl-font-body)', fontSize: '15px', fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.25),0 6px 18px rgba(46,91,255,.30)' }}>
-            Explore <ArrowRight size={16} />
+          <div style={{ flexShrink: 0, zIndex: 1, display: 'flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#2E5BFF,#5B7BFF)', color: '#FFF', borderRadius: '100px', padding: isMobile ? '11px 14px' : '12px 22px', fontFamily: 'var(--atl-font-body)', fontSize: '15px', fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.25),0 6px 18px rgba(46,91,255,.30)' }}>
+            {!isMobile && 'Explore'} <ArrowRight size={16} />
           </div>
         </motion.button>
       </div>
 
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '20px 24px 32px', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.35fr)', gap: 28, position: 'relative' }}>
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: isMobile ? '16px 16px 32px' : '20px 24px 32px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1.35fr)', gap: isMobile ? 20 : 28, position: 'relative' }}>
 
         {/* ── LEFT ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -282,7 +284,7 @@ export function HomeDashboard({ onNavigate, completedLessons, xp, mistakes, onRe
           {/* Module selectors */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4, delay: .2 }}>
             <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11px', fontWeight: 700, letterSpacing: '.08em', color: '#A7A3AD', textTransform: 'uppercase', margin: '0 0 10px' }}>All Modules</p>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {MODULES.map((m, mi) => {
                 const status = computeModuleStatus(mi, completedLessons);
                 const locked = status === 'locked';
