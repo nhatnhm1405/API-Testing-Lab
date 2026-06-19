@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Plus, Trash2, Send, Lock, AlertTriangle, CheckCircle2 } from "lucide-react";
 import type { PostmanData } from "../data/courseData";
+import { useIsMobile } from "./ui/use-mobile";
 
 interface MiniPostmanProps {
   data: PostmanData;
@@ -53,6 +54,7 @@ function JsonHighlight({ json }: { json: string }) {
 }
 
 export function MiniPostman({ data, onResult, phase }: MiniPostmanProps) {
+  const isMobile = useIsMobile();
   const [headers, setHeaders] = useState<Array<{ key: string; value: string; locked?: boolean }>>(
     data.headers.map(h => ({ ...h }))
   );
@@ -121,9 +123,9 @@ export function MiniPostman({ data, onResult, phase }: MiniPostmanProps) {
         </span>
       </div>
 
-      <div style={{ display:'grid',gridTemplateColumns:'minmax(0,1fr) minmax(0,1fr)' }}>
+      <div style={{ display:'grid',gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)' }}>
         {/* ── LEFT: Request editor ── */}
-        <div style={{ padding:20,borderRight:'1.5px solid #F2EFEA',display:'flex',flexDirection:'column',gap:16 }}>
+        <div style={{ padding:20,borderRight: isMobile ? 'none' : '1.5px solid #F2EFEA',borderBottom: isMobile ? '1.5px solid #F2EFEA' : 'none',display:'flex',flexDirection:'column',gap:16 }}>
 
           {/* Debug hint */}
           {data.debugMode && sendCount === 0 && (

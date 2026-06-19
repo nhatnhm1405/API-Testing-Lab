@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { GripVertical, CheckCircle2, XCircle } from "lucide-react";
+import { useIsMobile } from "./ui/use-mobile";
 
 interface Card { id: string; text: string; correctBucket: string }
 
@@ -30,6 +31,7 @@ export function DragDropCategorizeExercise({
   instruction, buckets, cards,
   checkTrigger, onReadyChange, onResult, phase,
 }: DragDropCategorizeProps) {
+  const isMobile = useIsMobile();
   const [assignments, setAssignments] = useState<Record<string, string | null>>(
     () => Object.fromEntries(cards.map(c => [c.id, null]))
   );
@@ -118,7 +120,7 @@ export function DragDropCategorizeExercise({
       )}
 
       {/* Buckets */}
-      <div style={{ display:'grid',gridTemplateColumns:`repeat(${Math.min(buckets.length,4)},1fr)`,gap:10 }}>
+      <div style={{ display:'grid',gridTemplateColumns:`repeat(${Math.min(buckets.length, isMobile ? 2 : 4)},1fr)`,gap:10 }}>
         {buckets.map(bucket => {
           const bStyle = getBucket(bucket);
           return (
