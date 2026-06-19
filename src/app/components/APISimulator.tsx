@@ -7,6 +7,7 @@ import {
 import confetti from "canvas-confetti";
 import { Mascot } from "./Mascot";
 import { TactileButton } from "./TactileButton";
+import { useIsMobile } from "./ui/use-mobile";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -330,6 +331,7 @@ function TravelDiagram({ phase, method }: { phase: TravelPhase; method: string }
 interface APISimulatorProps { onClose?: () => void }
 
 export function APISimulator({ onClose }: APISimulatorProps) {
+  const isMobile = useIsMobile();
   const [mode,        setMode]        = useState<DemoMode>('normal');
   const [method,      setMethod]      = useState('GET');
   const [urlSuffix,   setUrlSuffix]   = useState('');
@@ -521,7 +523,7 @@ export function APISimulator({ onClose }: APISimulatorProps) {
     : '0 1px 2px rgba(28,27,42,.05),0 10px 30px rgba(28,27,42,.07)';
 
   return (
-    <div style={{ background:'var(--atl-canvas)', minHeight:'100%', padding:'28px 20px', fontFamily:'var(--atl-font-body)', position:'relative', overflow:'hidden' }}>
+    <div style={{ background:'var(--atl-canvas)', minHeight:'100%', padding: isMobile ? '20px 14px' : '28px 20px', fontFamily:'var(--atl-font-body)', position:'relative', overflow:'hidden' }}>
       {/* Ambient tints */}
       <div style={{ position:'fixed', top:-60, right:-60, width:320, height:320, background:'radial-gradient(circle,rgba(46,91,255,.05),transparent 70%)', pointerEvents:'none' }}/>
       <div style={{ position:'fixed', bottom:-60, left:-60, width:320, height:320, background:'radial-gradient(circle,rgba(43,212,107,.04),transparent 70%)', pointerEvents:'none' }}/>
@@ -570,7 +572,7 @@ export function APISimulator({ onClose }: APISimulatorProps) {
         </motion.div>
 
         {/* ── Main two-pane body ── */}
-        <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) minmax(0,1fr)', gap:16 }}>
+        <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)', gap:16 }}>
 
           {/* ════════════════ LEFT: Request builder ════════════════ */}
           <motion.div initial={{ opacity:0,x:-16 }} animate={{ opacity:1,x:0 }} transition={{ duration:.4,delay:.08 }}
