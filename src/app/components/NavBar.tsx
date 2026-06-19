@@ -1,5 +1,6 @@
 import { Zap, Menu, Code2 } from "lucide-react";
 import { GitHubLink } from "./GitHubLink";
+import { useIsMobile } from "./ui/use-mobile";
 
 interface NavBarProps {
   streak?: number;
@@ -9,10 +10,11 @@ interface NavBarProps {
 }
 
 export function NavBar({ streak = 15, xp = 340, onMenu, onLogoClick }: NavBarProps) {
+  const isMobile = useIsMobile();
   return (
     <nav style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 24px', height: '60px',
+      padding: isMobile ? '0 14px' : '0 24px', height: '60px',
       background: '#FFFFFF', borderBottom: '1.5px solid #F2EFEA',
       position: 'sticky', top: 0, zIndex: 50,
     }}>
@@ -28,20 +30,22 @@ export function NavBar({ streak = 15, xp = 340, onMenu, onLogoClick }: NavBarPro
         }}>
           <Code2 size={16} color="white" strokeWidth={2.5}/>
         </div>
-        <span style={{ fontFamily: 'var(--atl-font-display)', fontWeight: 800, fontSize: '17px', color: '#1C1B2A', letterSpacing: '-0.02em' }}>
+        <span style={{ fontFamily: 'var(--atl-font-display)', fontWeight: 800, fontSize: isMobile ? '15px' : '17px', color: '#1C1B2A', letterSpacing: '-0.02em' }}>
           API Testing Lab
         </span>
       </button>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '5px',
-          background: '#F2EFEA', borderRadius: '100px', padding: '5px 12px',
-          fontSize: '13px', fontWeight: 600, color: '#6B6A7B', fontFamily: 'var(--atl-font-body)',
-        }}>
-          <span style={{ color: '#E0A815' }}>✦</span>
-          <span>{xp} XP</span>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
+        {!isMobile && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '5px',
+            background: '#F2EFEA', borderRadius: '100px', padding: '5px 12px',
+            fontSize: '13px', fontWeight: 600, color: '#6B6A7B', fontFamily: 'var(--atl-font-body)',
+          }}>
+            <span style={{ color: '#E0A815' }}>✦</span>
+            <span>{xp} XP</span>
+          </div>
+        )}
 
         <div style={{
           display: 'flex', alignItems: 'center', gap: '4px',
