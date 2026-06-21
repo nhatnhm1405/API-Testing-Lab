@@ -7,15 +7,21 @@ import {
 import confetti from "canvas-confetti";
 import { Mascot } from "./Mascot";
 import { TactileButton } from "./TactileButton";
+import { FreeLab } from "./FreeLab";
+import { M, statusStyle, JsonLine, TravelDiagram, type TravelPhase } from "./apiSimShared";
+import { playSend, playCorrect, playWrong } from "../lib/sound";
 import { useIsMobile } from "./ui/use-mobile";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type DemoMode   = 'normal' | 'debug' | 'post' | 'put' | 'delete';
+export type Tab = DemoMode | 'free';
 type SimState   = 'empty' | 'ready' | 'sending' | 'correct'
                 | 'wrong-method' | 'wrong-url' | 'wrong-auth' | 'wrong-body';
-type TravelPhase = 'idle' | 'outbound' | 'server-flash' | 'inbound' | 'done';
 type VerifyPhase = 'idle' | 'sending' | 'done';
+
+// Methods offered in the scripted scenarios (Free Lab adds PATCH on its own).
+const SCRIPTED_METHODS = ['GET', 'POST', 'PUT', 'DELETE'];
 
 interface Header { key: string; value: string; locked?: boolean }
 interface Resp   { status: number; statusText: string; lines: string[]; emptyNote?: string }
@@ -38,15 +44,6 @@ interface Scenario {
   explanation: Array<{ label: string; value: string; color: string; bg: string; note: string }>;
   hasVerify?: boolean;
 }
-
-// ── Method design tokens ──────────────────────────────────────────────────────
-
-const M: Record<string, { grad: string; ledge: string; muted: string; text: string; border: string; ambient: string }> = {
-  GET:    { grad:'linear-gradient(135deg,#2E5BFF,#5B7BFF)', ledge:'#1E3FCC', muted:'#EEF2FF', text:'#1D4ED8', border:'#93C5FD',  ambient:'rgba(46,91,255,.25)'  },
-  POST:   { grad:'linear-gradient(135deg,#10B981,#34D399)', ledge:'#059669', muted:'#ECFDF5', text:'#065F46', border:'#6EE7B7',  ambient:'rgba(16,185,129,.25)' },
-  PUT:    { grad:'linear-gradient(135deg,#F59E0B,#FCD34D)', ledge:'#D97706', muted:'#FFFBEB', text:'#92400E', border:'#FDE68A',  ambient:'rgba(245,158,11,.22)' },
-  DELETE: { grad:'linear-gradient(135deg,#F43F5E,#FB7185)', ledge:'#C1132F', muted:'#FFF1F2', text:'#9F1239', border:'#FECACA',  ambient:'rgba(244,63,94,.22)'  },
-};
 
 // ── Scenario data ─────────────────────────────────────────────────────────────
 
@@ -236,103 +233,22 @@ const SCENARIOS: Record<DemoMode, Scenario> = {
 
 // ── Mode tab config ────────────────────────────────────────────────────────────
 
-const MODE_TABS: Array<{ mode: DemoMode; label: string; method: string }> = [
-  { mode:'normal',  label:'GET',     method:'GET'    },
-  { mode:'debug',   label:'GET 401', method:'GET'    },
-  { mode:'post',    label:'POST',    method:'POST'   },
-  { mode:'put',     label:'PUT',     method:'PUT'    },
-  { mode:'delete',  label:'DELETE',  method:'DELETE' },
+const MODE_TABS: Array<{ mode: Tab; label: string; method: string }> = [
+  { mode:'normal',  label:'GET',          method:'GET'    },
+  { mode:'debug',   label:'GET 401',      method:'GET'    },
+  { mode:'post',    label:'POST',         method:'POST'   },
+  { mode:'put',     label:'PUT',          method:'PUT'    },
+  { mode:'delete',  label:'DELETE',       method:'DELETE' },
+  { mode:'free',    label:'🧪 Free Lab',  method:'GET'    },
 ];
-
-// ── Status pill helper ─────────────────────────────────────────────────────────
-
-function statusStyle(code: number) {
-  const f = Math.floor(code / 100);
-  if (f === 2) return { bg:'#ECFDF3', border:'#BBF7D0', text:'#15803D', dot:'#22C55E' };
-  if (f === 4) return { bg:'#FFF1F2', border:'#FECDD3', text:'#9F1239', dot:'#F43F5E' };
-  return              { bg:'#FFF7ED', border:'#FED7AA', text:'#92400E', dot:'#F97316' };
-}
-
-// ── JSON syntax highlighter ────────────────────────────────────────────────────
-
-function JsonLine({ line }: { line: string }) {
-  if (line.startsWith('//')) return <span style={{ color:'#6B7280', fontStyle:'italic' }}>{line}</span>;
-  const kv = line.match(/^(\s*)(".*?"):\s*(".*?"|[\d.]+|true|false|null)(,?)$/);
-  if (kv) {
-    const [, indent, key, val, comma] = kv;
-    const isStr = val.startsWith('"');
-    const isNum = /^[\d.]+$/.test(val);
-    const vc    = isStr ? '#6EE7B7' : isNum ? '#FCD34D' : '#A78BFA';
-    return (
-      <span>
-        <span style={{ color:'#6B7280' }}>{indent}</span>
-        <span style={{ color:'#C4B5FD' }}>{key}</span>
-        <span style={{ color:'#6B7280' }}>: </span>
-        <span style={{ color:vc }}>{val}</span>
-        <span style={{ color:'#6B7280' }}>{comma}</span>
-      </span>
-    );
-  }
-  return <span style={{ color:'#9CA3AF' }}>{line}</span>;
-}
-
-// ── Travel diagram ─────────────────────────────────────────────────────────────
-
-function TravelDiagram({ phase, method }: { phase: TravelPhase; method: string }) {
-  const ms = M[method] ?? M.GET;
-  const serverGlow = phase === 'server-flash' || phase === 'inbound' || phase === 'done';
-  return (
-    <div style={{ display:'flex', alignItems:'center', padding:'28px 24px', gap:0, position:'relative' }}>
-      <motion.div
-        animate={phase === 'outbound' ? { scale:[1,1.08,1], transition:{ duration:.3 } } : {}}
-        style={{ width:56, height:56, borderRadius:14, background:`${ms.muted}`, border:`2px solid ${ms.border}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, flexShrink:0, boxShadow:`0 4px 12px ${ms.ambient}`, zIndex:1 }}>
-        💻
-      </motion.div>
-
-      <div style={{ flex:1, height:3, background:'#ECE8E1', position:'relative', margin:'0 10px', borderRadius:2 }}>
-        <AnimatePresence>
-          {(phase === 'outbound' || phase === 'server-flash') && (
-            <motion.div key="out"
-              initial={{ left:0, scale:0 }} animate={{ left:'calc(100% - 14px)', scale:1 }} exit={{ opacity:0 }}
-              transition={{ duration:.55, ease:[.34,1.56,.64,1] }}
-              style={{ position:'absolute', top:-6, width:14, height:14, borderRadius:'50%', background:ms.grad, boxShadow:`0 0 12px ${ms.ambient}`, zIndex:2 }}
-            />
-          )}
-        </AnimatePresence>
-        <AnimatePresence>
-          {phase === 'inbound' && (
-            <motion.div key="in"
-              initial={{ right:0, scale:0 }} animate={{ right:'calc(100% - 14px)', scale:1 }}
-              transition={{ duration:.55, ease:[.34,1.56,.64,1] }}
-              style={{ position:'absolute', top:-6, width:14, height:14, borderRadius:'50%', background:'linear-gradient(135deg,#22C55E,#8FE34A)', boxShadow:'0 0 12px rgba(34,197,94,.5)', zIndex:2 }}
-            />
-          )}
-        </AnimatePresence>
-      </div>
-
-      <motion.div
-        animate={serverGlow ? {
-          scale:[1,1.12,1.04,1],
-          boxShadow:['0 4px 12px rgba(16,185,129,.1)','0 0 28px rgba(16,185,129,.55)','0 4px 12px rgba(16,185,129,.1)'],
-          transition:{ duration:.4 },
-        } : {}}
-        style={{ width:56, height:56, borderRadius:14, background:'linear-gradient(135deg,#ECFDF5,#D1FAE5)', border:`2px solid ${serverGlow ? '#34D399' : '#A7F3D0'}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, flexShrink:0, zIndex:1 }}>
-        🖥️
-      </motion.div>
-
-      <div style={{ position:'absolute', bottom:6, left:0, width:56, textAlign:'center', fontFamily:'var(--atl-font-body)', fontSize:10, fontWeight:600, color:'#A7A3AD' }}>Client</div>
-      <div style={{ position:'absolute', bottom:6, right:0, width:56, textAlign:'center', fontFamily:'var(--atl-font-body)', fontSize:10, fontWeight:600, color:'#A7A3AD' }}>Server</div>
-    </div>
-  );
-}
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
-interface APISimulatorProps { onClose?: () => void }
+interface APISimulatorProps { onClose?: () => void; initialTab?: Tab }
 
-export function APISimulator({ onClose }: APISimulatorProps) {
+export function APISimulator({ onClose, initialTab = 'normal' }: APISimulatorProps) {
   const isMobile = useIsMobile();
-  const [mode,        setMode]        = useState<DemoMode>('normal');
+  const [mode,        setMode]        = useState<Tab>(initialTab);
   const [method,      setMethod]      = useState('GET');
   const [urlSuffix,   setUrlSuffix]   = useState('');
   const [headers,     setHeaders]     = useState<Header[]>([]);
@@ -347,13 +263,22 @@ export function APISimulator({ onClose }: APISimulatorProps) {
   const [verifyLines, setVerifyLines] = useState(0);
 
   const confettiFired = useRef(false);
-  const sc = SCENARIOS[mode];
+  const sc = SCENARIOS[mode as DemoMode];
   const ms = M[method] ?? M.GET;
 
   const isReady = urlSuffix.trim().length > 0;
 
   // ── Mode switch ────────────────────────────────────────────────────────────
-  const switchMode = (m: DemoMode) => {
+  const switchMode = (m: Tab) => {
+    if (m === 'free') {
+      // Reset the scripted transient state so scenario-derived values stay safe
+      // while no scenario is active.
+      setMode('free');
+      setSimState('empty');
+      setTravelPhase('idle');
+      setShowWhy(false);
+      return;
+    }
     const next = SCENARIOS[m];
     setMode(m);
     setMethod(next.correctMethod);
@@ -439,11 +364,14 @@ export function APISimulator({ onClose }: APISimulatorProps) {
     setSimState('sending');
     setTravelPhase('outbound');
     setVisibleLines(0);
+    playSend();
     setTimeout(() => setTravelPhase('server-flash'), 580);
     setTimeout(() => setTravelPhase('inbound'),      820);
     setTimeout(() => {
+      const ok = checkCorrect();
       setTravelPhase('done');
-      setSimState(checkCorrect() ? 'correct' : getWrongState());
+      setSimState(ok ? 'correct' : getWrongState());
+      (ok ? playCorrect : playWrong)();
     }, 1480);
   };
 
@@ -522,6 +450,56 @@ export function APISimulator({ onClose }: APISimulatorProps) {
     ? '0 0 0 4px rgba(244,63,94,.08), 0 10px 30px rgba(28,27,42,.07)'
     : '0 1px 2px rgba(28,27,42,.05),0 10px 30px rgba(28,27,42,.07)';
 
+  // Scenario / Free Lab tab row — shared by both the scripted view and Free Lab.
+  const renderTabs = () => (
+    <div style={{ display:'flex', gap:4, background:'#F2EFEA', borderRadius:100, padding:3, flexShrink:0, flexWrap:'wrap' }}>
+      {MODE_TABS.map(({ mode:m, label, method:mth }) => {
+        const active = mode === m;
+        const ms2 = M[mth];
+        return (
+          <motion.button key={m} onClick={() => switchMode(m)} whileTap={{ scale:.95 }}
+            style={{
+              fontFamily:'var(--atl-font-body)', fontSize:'12px', fontWeight:700,
+              padding:'5px 13px', borderRadius:100, border:'none', cursor:'pointer',
+              background: active ? ms2.grad : 'transparent',
+              color: active ? '#FFF' : '#6B6A7B',
+              boxShadow: active ? `0 2px 6px ${ms2.ambient}` : 'none',
+              transition:'all .15s',
+            }}>
+            {label}
+          </motion.button>
+        );
+      })}
+    </div>
+  );
+
+  // ── Free Lab — open sandbox on the in-browser mock engine ────────────────────
+  if (mode === 'free') {
+    return (
+      <div style={{ background:'var(--atl-canvas)', minHeight:'100%', padding: isMobile ? '20px 14px' : '28px 20px', fontFamily:'var(--atl-font-body)', position:'relative', overflow:'hidden' }}>
+        <div style={{ position:'fixed', top:-60, right:-60, width:320, height:320, background:'radial-gradient(circle,rgba(139,92,246,.05),transparent 70%)', pointerEvents:'none' }}/>
+        <div style={{ position:'fixed', bottom:-60, left:-60, width:320, height:320, background:'radial-gradient(circle,rgba(43,212,107,.04),transparent 70%)', pointerEvents:'none' }}/>
+
+        <div style={{ maxWidth:960, margin:'0 auto' }}>
+          <motion.div initial={{ opacity:0,y:-12 }} animate={{ opacity:1,y:0 }} transition={{ duration:.35 }}
+            style={{ background:'#FFF', borderRadius:20, padding:'14px 18px', marginBottom:18, border:'1.5px solid #ECE8E1', boxShadow:'0 1px 2px rgba(28,27,42,.05),0 6px 20px rgba(28,27,42,.06)', display:'flex', alignItems:'center', gap:14, flexWrap:'wrap' }}>
+            {renderTabs()}
+            <p style={{ fontFamily:'var(--atl-font-display)', fontSize:'15px', fontWeight:700, color:'#1C1B2A', margin:0, flex:1, letterSpacing:'-0.01em', minWidth:200 }}>
+              🧪 Free Lab — build any request and explore real responses (simulated, offline).
+            </p>
+            {onClose && (
+              <button onClick={onClose} style={{ width:28, height:28, border:'none', background:'#F2EFEA', borderRadius:'50%', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#6B6A7B', flexShrink:0 }}>
+                <X size={14} strokeWidth={2.5}/>
+              </button>
+            )}
+          </motion.div>
+
+          <FreeLab/>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ background:'var(--atl-canvas)', minHeight:'100%', padding: isMobile ? '20px 14px' : '28px 20px', fontFamily:'var(--atl-font-body)', position:'relative', overflow:'hidden' }}>
       {/* Ambient tints */}
@@ -535,25 +513,7 @@ export function APISimulator({ onClose }: APISimulatorProps) {
           style={{ background:'#FFF', borderRadius:20, padding:'14px 18px', marginBottom:18, border:'1.5px solid #ECE8E1', boxShadow:'0 1px 2px rgba(28,27,42,.05),0 6px 20px rgba(28,27,42,.06)', display:'flex', alignItems:'center', gap:14, flexWrap:'wrap' }}>
 
           {/* Scenario tabs */}
-          <div style={{ display:'flex', gap:4, background:'#F2EFEA', borderRadius:100, padding:3, flexShrink:0 }}>
-            {MODE_TABS.map(({ mode:m, label, method:mth }) => {
-              const active = mode === m;
-              const ms2 = M[mth];
-              return (
-                <motion.button key={m} onClick={() => switchMode(m)} whileTap={{ scale:.95 }}
-                  style={{
-                    fontFamily:'var(--atl-font-body)', fontSize:'12px', fontWeight:700,
-                    padding:'5px 13px', borderRadius:100, border:'none', cursor:'pointer',
-                    background: active ? ms2.grad : 'transparent',
-                    color: active ? '#FFF' : '#6B6A7B',
-                    boxShadow: active ? `0 2px 6px ${ms2.ambient}` : 'none',
-                    transition:'all .15s',
-                  }}>
-                  {label}
-                </motion.button>
-              );
-            })}
-          </div>
+          {renderTabs()}
 
           <p style={{ fontFamily:'var(--atl-font-display)', fontSize:'15px', fontWeight:700, color:'#1C1B2A', margin:0, flex:1, letterSpacing:'-0.01em', minWidth:200 }}>
             {sc.task}
@@ -584,7 +544,7 @@ export function APISimulator({ onClose }: APISimulatorProps) {
             <div>
               <p style={{ fontFamily:'var(--atl-font-body)', fontSize:'12px', fontWeight:600, color:'#6B6A7B', margin:'0 0 8px' }}>Method</p>
               <div style={{ display:'flex', gap:6 }}>
-                {Object.keys(M).map(met => {
+                {SCRIPTED_METHODS.map(met => {
                   const active = method === met;
                   const s = M[met];
                   return (
