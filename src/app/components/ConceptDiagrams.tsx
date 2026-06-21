@@ -4,6 +4,7 @@ import { ChevronLeft, ArrowRight, RotateCcw } from "lucide-react";
 import { PhoApiFlow } from "./PhoApiFlow";
 import { ApiStoryFlow } from "./ApiStoryFlow";
 import { APISimulator } from "./APISimulator";
+import { playClick } from "../lib/sound";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams';
 
@@ -210,7 +211,7 @@ export function ConceptDiagrams({ onNavigate }: ConceptDiagramsProps) {
   return (
     <div style={{ minHeight:'100%',background:'var(--atl-canvas)' }}>
       <div style={{ background:'#FFF',borderBottom:'1.5px solid #F2EFEA',padding:'14px 24px',display:'flex',alignItems:'center',gap:12,position:'sticky',top:0,zIndex:10 }}>
-        <button onClick={() => onNavigate('home')} style={{ width:36,height:36,borderRadius:'50%',background:'#F2EFEA',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#6B6A7B',flexShrink:0 }}>
+        <button onClick={() => { playClick(); onNavigate('home'); }} style={{ width:36,height:36,borderRadius:'50%',background:'#F2EFEA',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#6B6A7B',flexShrink:0 }}>
           <ChevronLeft size={18} strokeWidth={2.5}/>
         </button>
         <div>
@@ -259,11 +260,11 @@ export function ConceptDiagrams({ onNavigate }: ConceptDiagramsProps) {
               style={{ display:'flex',flexDirection:'column',gap:16 }}>
               <APISimulator/>
               <div style={{ display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap' }}>
-                <button onClick={() => setStage('recap')}
+                <button onClick={() => { playClick(); setStage('recap'); }}
                   style={{ display:'inline-flex',alignItems:'center',gap:8,background:'#FFF',border:'1.5px solid #ECE8E1',borderRadius:'100px',padding:'10px 18px',cursor:'pointer',fontFamily:'var(--atl-font-body)',fontSize:'13px',fontWeight:700,color:'#6B6A7B',boxShadow:'0 1px 4px rgba(28,27,42,.06)' }}>
                   📋 Request anatomy reference
                 </button>
-                <button onClick={() => setStage('intro')}
+                <button onClick={() => { playClick(); setStage('intro'); }}
                   style={{ display:'inline-flex',alignItems:'center',gap:8,background:'#FFF',border:'1.5px solid #ECE8E1',borderRadius:'100px',padding:'10px 18px',cursor:'pointer',fontFamily:'var(--atl-font-body)',fontSize:'13px',fontWeight:700,color:'#6B6A7B',boxShadow:'0 1px 4px rgba(28,27,42,.06)' }}>
                   <RotateCcw size={14}/> Restart story
                 </button>
@@ -277,7 +278,7 @@ export function ConceptDiagrams({ onNavigate }: ConceptDiagramsProps) {
               <RequestResponseDiagram/>
               <AnatomyDiagram/>
 
-              <button onClick={() => setStage('lab')}
+              <button onClick={() => { playClick(); setStage('lab'); }}
                 style={{ alignSelf:'center',display:'inline-flex',alignItems:'center',gap:8,background:'#FFF',border:'1.5px solid #ECE8E1',borderRadius:'100px',padding:'10px 18px',cursor:'pointer',fontFamily:'var(--atl-font-body)',fontSize:'13px',fontWeight:700,color:'#6B6A7B',boxShadow:'0 1px 4px rgba(28,27,42,.06)' }}>
                 ← Back to the Lab
               </button>

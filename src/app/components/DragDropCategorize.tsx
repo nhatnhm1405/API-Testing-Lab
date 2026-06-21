@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { GripVertical, CheckCircle2, XCircle } from "lucide-react";
+import { playPop } from "../lib/sound";
 import { useIsMobile } from "./ui/use-mobile";
 
 interface Card { id: string; text: string; correctBucket: string }
@@ -56,6 +57,7 @@ export function DragDropCategorizeExercise({
   const assign = (cardId: string, bucket: string) => {
     setAssignments(prev => ({ ...prev, [cardId]: bucket }));
     setSelected(null);
+    playPop();
   };
 
   const unassign = (cardId: string) => {

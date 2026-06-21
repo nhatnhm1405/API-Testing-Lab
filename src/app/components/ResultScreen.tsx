@@ -4,6 +4,7 @@ import confetti from "canvas-confetti";
 import { TactileButton } from "./TactileButton";
 import { Zap, Star, Home, ArrowRight, Map, RotateCcw, AlertCircle, Lightbulb } from "lucide-react";
 import { findLesson, getLessonPrompt } from "../data/courseData";
+import { playClick } from "../lib/sound";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
 
@@ -178,7 +179,7 @@ export function ResultScreen({ onNavigate, moduleNumber, moduleTitle, isLastModu
         {/* Replay module */}
         <motion.button initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ duration:.4,delay:.85 }}
           whileHover={{ y:-1 }} whileTap={{ scale:.98 }}
-          onClick={onRestartModule}
+          onClick={() => { playClick(); onRestartModule(); }}
           style={{ marginTop:14,display:'inline-flex',alignItems:'center',gap:7,background:'none',border:'none',cursor:'pointer',fontFamily:'var(--atl-font-body)',fontSize:'14px',fontWeight:700,color:'#6B6A7B' }}>
           <RotateCcw size={15}/> Replay this module
         </motion.button>

@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { ChevronLeft, AlertCircle, Lightbulb, PartyPopper } from "lucide-react";
 import { findLesson, getLessonPrompt } from "../data/courseData";
+import { playClick } from "../lib/sound";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
 
@@ -19,7 +20,7 @@ export function MistakesReview({ onNavigate, mistakes }: MistakesReviewProps) {
     <div style={{ minHeight:'100%',background:'var(--atl-canvas)' }}>
       {/* Header */}
       <div style={{ background:'#FFF',borderBottom:'1.5px solid #F2EFEA',padding:'14px 24px',display:'flex',alignItems:'center',gap:12,position:'sticky',top:0,zIndex:10 }}>
-        <button onClick={() => onNavigate('home')} style={{ width:36,height:36,borderRadius:'50%',background:'#F2EFEA',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#6B6A7B',flexShrink:0 }}>
+        <button onClick={() => { playClick(); onNavigate('home'); }} style={{ width:36,height:36,borderRadius:'50%',background:'#F2EFEA',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#6B6A7B',flexShrink:0 }}>
           <ChevronLeft size={18} strokeWidth={2.5}/>
         </button>
         <div>

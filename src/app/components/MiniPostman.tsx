@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Plus, Trash2, Send, Lock, AlertTriangle, CheckCircle2 } from "lucide-react";
 import type { PostmanData } from "../data/courseData";
+import { playSend, playCorrect, playWrong } from "../lib/sound";
 import { useIsMobile } from "./ui/use-mobile";
 
 interface MiniPostmanProps {
@@ -79,6 +80,7 @@ export function MiniPostman({ data, onResult, phase }: MiniPostmanProps) {
     if (sending || !isAnswering) return;
     setSending(true);
     setResponse(null);
+    playSend();
     await new Promise(r => setTimeout(r, 900));
     setSendCount(n => n + 1);
 
@@ -86,10 +88,12 @@ export function MiniPostman({ data, onResult, phase }: MiniPostmanProps) {
       const ok = checkHeaders();
       setResponse(ok ? data.successResponse : data.initialFailResponse!);
       setSending(false);
+      (ok ? playCorrect : playWrong)();
       if (ok) onResult(true);
     } else {
       setResponse(data.successResponse);
       setSending(false);
+      playCorrect();
       onResult(true);
     }
   };

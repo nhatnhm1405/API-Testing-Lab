@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { ReactNode } from "react";
+import { playClick } from "../lib/sound";
 
 export type ButtonVariant = 'primary' | 'check' | 'continue' | 'disabled' | 'danger' | 'ghost';
 
@@ -47,7 +48,7 @@ export function TactileButton({ children, variant = 'primary', onClick, disabled
         press: { y: 4,  boxShadow: pressShadow, filter: 'brightness(0.96)', transition: { duration: 0.08 } },
       }}
       transition={{ type: 'spring', stiffness: 600, damping: 32 }}
-      onClick={isDisabled ? undefined : onClick}
+      onClick={isDisabled ? undefined : () => { playClick(); onClick?.(); }}
       style={{
         background: cfg.bg, color: cfg.text,
         width: fullWidth ? '100%' : undefined,

@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { Check, X } from "lucide-react";
 import { ReactNode } from "react";
+import { playClick } from "../lib/sound";
 
 export type OptionState = 'default' | 'selected' | 'correct' | 'wrong' | 'correct-unselected';
 
@@ -10,6 +11,8 @@ interface OptionCardProps {
   state?: OptionState;
   onClick?: () => void;
   disabled?: boolean;
+  // Suppress the built-in click blip when the parent plays its own outcome sound.
+  silent?: boolean;
 }
 
 const LETTERS = ['A', 'B', 'C', 'D'];
@@ -40,7 +43,7 @@ function Badge({ letter, state, bg, color }: { letter: string; state: OptionStat
   );
 }
 
-export function OptionCard({ index, children, state = 'default', onClick, disabled }: OptionCardProps) {
+export function OptionCard({ index, children, state = 'default', onClick, disabled, silent }: OptionCardProps) {
   const s = S[state];
   const letter = LETTERS[index] ?? String.fromCharCode(65 + index);
   const interactive = !disabled && (state === 'default' || state === 'selected');
@@ -53,7 +56,7 @@ export function OptionCard({ index, children, state = 'default', onClick, disabl
       }
       whileHover={interactive ? { y: -2, boxShadow: '0 0 0 2px rgba(46,91,255,.2), 0 8px 24px rgba(46,91,255,.1)', transition: { duration: 0.15 } } : {}}
       whileTap={interactive ? { scale: 0.99, transition: { duration: 0.08 } } : {}}
-      onClick={interactive ? onClick : undefined}
+      onClick={interactive ? () => { if (!silent) playClick(); onClick?.(); } : undefined}
       style={{
         background: s.bg, border: s.border, borderRadius: '16px',
         boxShadow: s.shadow, padding: '14px 16px', minHeight: '64px',

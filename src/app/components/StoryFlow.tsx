@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { RotateCcw, CheckCircle2 } from "lucide-react";
 import { OptionCard, OptionState } from "./OptionCard";
 import { TactileButton } from "./TactileButton";
+import { playCorrect, playWrong } from "../lib/sound";
 
 // ── Shared conversation engine ─────────────────────────────────────
 // A story is a list of beats. Each beat shows a spoken line, then a
@@ -40,7 +41,9 @@ export function StoryFlow({ beats, finalScene, doneNote, doneSummary, revealPref
   const pick = (i: number) => {
     if (revealed) return;
     setPicked(i);
-    if (beat.options[i].correct) setRevealed(true);
+    const ok = beat.options[i].correct;
+    (ok ? playCorrect : playWrong)();
+    if (ok) setRevealed(true);
   };
   const next = () => {
     if (!isLast) { setStep(s => s + 1); setPicked(null); setRevealed(false); }
@@ -93,7 +96,7 @@ export function StoryFlow({ beats, finalScene, doneNote, doneSummary, revealPref
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {beat.options.map((o, i) => (
-                  <OptionCard key={i} index={i} state={optState(i)} disabled={revealed} onClick={() => pick(i)}>
+                  <OptionCard key={i} index={i} state={optState(i)} disabled={revealed} silent onClick={() => pick(i)}>
                     {o.text}
                   </OptionCard>
                 ))}

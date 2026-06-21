@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
+import { playPop, playClick } from "../lib/sound";
 
 interface FillBlankProps {
   template: string;
@@ -44,6 +45,7 @@ export function FillBlankExercise({
     if (idx === -1) return;
     setFilled(prev => { const n = [...prev]; n[idx] = word; return n; });
     setBank(prev => prev.filter(w => w !== word));
+    playPop();
   };
 
   const clearBlank = (idx: number) => {
@@ -52,6 +54,7 @@ export function FillBlankExercise({
     if (!word) return;
     setFilled(prev => { const n = [...prev]; n[idx] = null; return n; });
     setBank(prev => [...prev, word]);
+    playClick();
   };
 
   const isAnswering = phase === 'answering' && checkTrigger === 0;

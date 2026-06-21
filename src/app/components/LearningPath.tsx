@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { CheckCircle2, Lock, Play, ChevronLeft, Zap, RotateCcw } from "lucide-react";
 import { Mascot } from "./Mascot";
 import { MODULES, computeModuleStatus } from "../data/courseData";
+import { playClick } from "../lib/sound";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
 
@@ -57,7 +58,7 @@ export function LearningPath({ onNavigate, completedLessons, onRestartModule }: 
 
       {/* Header */}
       <div style={{ background:'#FFF',borderBottom:'1.5px solid #F2EFEA',padding:'14px 24px',display:'flex',alignItems:'center',gap:12,position:'sticky',top:0,zIndex:10 }}>
-        <button onClick={() => onNavigate('home')} style={{ width:36,height:36,borderRadius:'50%',background:'#F2EFEA',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#6B6A7B',flexShrink:0 }}>
+        <button onClick={() => { playClick(); onNavigate('home'); }} style={{ width:36,height:36,borderRadius:'50%',background:'#F2EFEA',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#6B6A7B',flexShrink:0 }}>
           <ChevronLeft size={18} strokeWidth={2.5}/>
         </button>
         <div style={{ flex:1 }}>
@@ -95,7 +96,7 @@ export function LearningPath({ onNavigate, completedLessons, onRestartModule }: 
                 {status === 'completed' && (
                   <motion.button
                     whileHover={{ scale:1.12 }} whileTap={{ scale:.9 }}
-                    onClick={() => onRestartModule(mi)}
+                    onClick={() => { playClick(); onRestartModule(mi); }}
                     title="Restart module"
                     style={{ display:'flex',alignItems:'center',justifyContent:'center',width:24,height:24,borderRadius:'50%',border:'none',background:`${mod.accent}1F`,color:mod.accent,cursor:'pointer',flexShrink:0 }}>
                     <RotateCcw size={13} strokeWidth={2.5}/>
@@ -114,7 +115,7 @@ export function LearningPath({ onNavigate, completedLessons, onRestartModule }: 
                     <CandyNode
                       status={nodeStatus} accent={mod.nodeColor[0]}
                       lessonTitle={lesson.title}
-                      onClick={isCurrent ? () => onNavigate('lesson') : undefined}
+                      onClick={isCurrent ? () => { playClick(); onNavigate('lesson'); } : undefined}
                       showMascot={isCurrent}
                       offset={li}
                     />

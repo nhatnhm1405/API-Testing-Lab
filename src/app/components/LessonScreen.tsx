@@ -12,6 +12,7 @@ import { DragDropOrderExercise } from "./DragDropOrder";
 import { MiniPostman } from "./MiniPostman";
 import { getCurrentModule } from "../data/courseData";
 import type { MCQData, FillBlankData, DragCategorizeData, DragOrderData, PostmanData } from "../data/courseData";
+import { playCorrect, playWrong } from "../lib/sound";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
 type Phase = 'answering' | 'correct' | 'wrong';
@@ -47,6 +48,7 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, complete
 
   const handleExerciseResult = (correct: boolean) => {
     if (!correct) onMistake(lesson.id);
+    (correct ? playCorrect : playWrong)();
     setPhase(correct ? 'correct' : 'wrong');
   };
 
@@ -57,6 +59,7 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, complete
       const mcq = lesson.data as MCQData;
       const correct = selected === mcq.correctIndex;
       if (!correct) onMistake(lesson.id);
+      (correct ? playCorrect : playWrong)();
       setPhase(correct ? 'correct' : 'wrong');
     } else {
       setCheckTrigger(t => t + 1);
