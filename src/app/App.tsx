@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { NavBar } from "./components/NavBar";
 import { HomeDashboard } from "./components/HomeDashboard";
@@ -7,22 +7,34 @@ import { LessonScreen } from "./components/LessonScreen";
 import { ResultScreen } from "./components/ResultScreen";
 import { SkillCheckScreen } from "./components/SkillCheckScreen";
 import { ConceptDiagrams } from "./components/ConceptDiagrams";
-import { APISimulator } from "./components/APISimulator";
+import { APISimulator, type Tab } from "./components/APISimulator";
 import { MistakesReview } from "./components/MistakesReview";
-import { MODULES, getCurrentModule, USER_STREAK, USER_XP } from "./data/courseData";
+import { MODULES, getCurrentModule, USER_STREAK } from "./data/courseData";
+import { loadProgress, saveProgress } from "./lib/storage";
 
 export type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
 
 const NO_NAV: View[] = ['lesson'];
 
+const SAVED = loadProgress();
+
 export default function App() {
   const [view,             setView]             = useState<View>('home');
-  const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
-  const [xp,               setXP]               = useState(USER_XP);
+  const [completedLessons, setCompletedLessons] = useState<Set<string>>(SAVED.completedLessons);
+  const [xp,               setXP]               = useState(SAVED.xp);
   // Lessons the user answered incorrectly (noted for review)
-  const [mistakes,         setMistakes]         = useState<Set<string>>(new Set());
+  const [mistakes,         setMistakes]         = useState<Set<string>>(SAVED.mistakes);
   // Module whose completion screen is currently shown
   const [resultModuleIdx,  setResultModuleIdx]  = useState(0);
+  // Which tab the API Simulator opens on (Home can deep-link straight to Free Lab)
+  const [simTab,           setSimTab]           = useState<Tab>('normal');
+  // Consecutive correct answers — drives the combo badge in the NavBar
+  const [combo,            setCombo]            = useState(0);
+
+  // Persist progress so it survives a refresh (XP / completed lessons / mistakes).
+  useEffect(() => {
+    saveProgress({ xp, completedLessons, mistakes });
+  }, [xp, completedLessons, mistakes]);
 
   const { module: currentMod } = getCurrentModule(completedLessons);
   const allModuleDone = currentMod.lessons.every(l => completedLessons.has(l.id));
@@ -33,13 +45,21 @@ export default function App() {
       setView('result');
       return;
     }
+    if (next === 'simulator') setSimTab('normal');
     setView(next);
+  };
+
+  // Open the simulator straight on the Free Lab tab (bypasses the normal reset).
+  const openFreeLab = () => {
+    setSimTab('free');
+    setView('simulator');
   };
 
   const handleLessonComplete = (lessonId: string, earnedXP: number) => {
     const newCompleted = new Set([...completedLessons, lessonId]);
     setCompletedLessons(newCompleted);
     setXP(prev => prev + earnedXP);
+    setCombo(c => earnedXP > 0 ? c + 1 : 0);
 
     // Find the module this lesson belongs to and celebrate only when THAT
     // module flips from incomplete → complete (per-module, not whole course).
@@ -55,6 +75,7 @@ export default function App() {
 
   const noteMistake = (lessonId: string) => {
     setMistakes(prev => prev.has(lessonId) ? prev : new Set([...prev, lessonId]));
+    setCombo(0);
   };
 
   // Wipe a module's progress (and its noted mistakes) and replay it from lesson 1.
@@ -83,14 +104,14 @@ export default function App() {
   return (
     <div style={{ width:'100%', minHeight:'100vh', background:'var(--atl-canvas)', fontFamily:'var(--atl-font-body)', display:'flex', flexDirection:'column' }}>
       {!NO_NAV.includes(view) && (
-        <NavBar streak={USER_STREAK} xp={xp} onLogoClick={() => navigate('home')}/>
+        <NavBar streak={USER_STREAK} xp={xp} combo={combo} onLogoClick={() => navigate('home')}/>
       )}
 
       <div style={{ flex:1, position:'relative' }}>
         <AnimatePresence mode="wait">
           {view === 'home' && (
             <Screen key="home">
-              <HomeDashboard onNavigate={navigate} completedLessons={completedLessons} xp={xp} mistakes={mistakes} onRestartModule={restartModule}/>
+              <HomeDashboard onNavigate={navigate} onOpenFreeLab={openFreeLab} completedLessons={completedLessons} xp={xp} mistakes={mistakes} onRestartModule={restartModule}/>
             </Screen>
           )}
           {view === 'path' && (
@@ -144,7 +165,7 @@ export default function App() {
           )}
           {view === 'simulator' && (
             <Screen key="simulator">
-              <APISimulator onClose={() => navigate('home')}/>
+              <APISimulator initialTab={simTab} onClose={() => navigate('home')}/>
             </Screen>
           )}
           {view === 'review' && (
