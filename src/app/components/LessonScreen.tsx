@@ -10,7 +10,7 @@ import { FillBlankExercise } from "./FillBlank";
 import { DragDropCategorizeExercise } from "./DragDropCategorize";
 import { DragDropOrderExercise } from "./DragDropOrder";
 import { MiniPostman } from "./MiniPostman";
-import { getCurrentModule } from "../data/courseData";
+import { MODULES } from "../data/courseData";
 import type { MCQData, FillBlankData, DragCategorizeData, DragOrderData, PostmanData } from "../data/courseData";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
@@ -20,17 +20,13 @@ interface LessonScreenProps {
   onNavigate: (v: View) => void;
   onLessonComplete: (lessonId: string, xp: number) => void;
   onMistake: (lessonId: string) => void;
-  completedLessons: Set<string>;
+  target: { moduleIdx: number; lessonIdx: number };
   streak: number;
 }
 
-export function LessonScreen({ onNavigate, onLessonComplete, onMistake, completedLessons, streak }: LessonScreenProps) {
-  const { module: mod } = getCurrentModule(completedLessons);
-  const lessonIdx = Math.min(
-    mod.lessons.findIndex(l => !completedLessons.has(l.id)),
-    mod.lessons.length - 1
-  );
-  const safeIdx = lessonIdx === -1 ? mod.lessons.length - 1 : lessonIdx;
+export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, streak }: LessonScreenProps) {
+  const mod     = MODULES[target.moduleIdx];
+  const safeIdx = Math.min(Math.max(target.lessonIdx, 0), mod.lessons.length - 1);
   const lesson  = mod.lessons[safeIdx];
 
   const [phase,         setPhase]         = useState<Phase>('answering');

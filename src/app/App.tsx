@@ -9,7 +9,7 @@ import { SkillCheckScreen } from "./components/SkillCheckScreen";
 import { ConceptDiagrams } from "./components/ConceptDiagrams";
 import { APISimulator } from "./components/APISimulator";
 import { MistakesReview } from "./components/MistakesReview";
-import { MODULES, getCurrentModule, USER_STREAK, USER_XP } from "./data/courseData";
+import { MODULES, USER_STREAK, USER_XP } from "./data/courseData";
 
 export type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
 
@@ -23,17 +23,25 @@ export default function App() {
   const [mistakes,         setMistakes]         = useState<Set<string>>(new Set());
   // Module whose completion screen is currently shown
   const [resultModuleIdx,  setResultModuleIdx]  = useState(0);
+  // The lesson currently open in the lesson view. Free-roam: any module/lesson
+  // can be targeted directly, so the active lesson is explicit rather than
+  // implicitly derived from progress.
+  const [lessonTarget,     setLessonTarget]     = useState({ moduleIdx: 0, lessonIdx: 0 });
+  // Which module the learning-path detail screen is showing.
+  const [pathModuleIdx,    setPathModuleIdx]    = useState(0);
 
-  const { module: currentMod } = getCurrentModule(completedLessons);
-  const allModuleDone = currentMod.lessons.every(l => completedLessons.has(l.id));
+  const navigate = (next: View) => setView(next);
 
-  const navigate = (next: View) => {
-    if (next === 'lesson' && allModuleDone) {
-      setResultModuleIdx(MODULES.length - 1);
-      setView('result');
-      return;
-    }
-    setView(next);
+  // Open the Brilliant-style detail page for a given module.
+  const openModulePath = (moduleIdx: number) => {
+    setPathModuleIdx(moduleIdx);
+    setView('path');
+  };
+
+  // Open a specific lesson (used by Home, the learning path and restart).
+  const openLesson = (moduleIdx: number, lessonIdx: number) => {
+    setLessonTarget({ moduleIdx, lessonIdx });
+    setView('lesson');
   };
 
   const handleLessonComplete = (lessonId: string, earnedXP: number) => {
@@ -41,15 +49,18 @@ export default function App() {
     setCompletedLessons(newCompleted);
     setXP(prev => prev + earnedXP);
 
-    // Find the module this lesson belongs to and celebrate only when THAT
-    // module flips from incomplete → complete (per-module, not whole course).
-    const finishedIdx = MODULES.findIndex(m => m.lessons.some(l => l.id === lessonId));
-    const finishedMod = MODULES[finishedIdx];
-    const wasComplete = finishedMod.lessons.every(l => completedLessons.has(l.id));
-    const nowComplete = finishedMod.lessons.every(l => newCompleted.has(l.id));
-    if (!wasComplete && nowComplete) {
-      setResultModuleIdx(finishedIdx);
+    const { moduleIdx, lessonIdx } = lessonTarget;
+    const mod = MODULES[moduleIdx];
+    const isLastInModule = lessonIdx >= mod.lessons.length - 1;
+    const moduleNowComplete = mod.lessons.every(l => newCompleted.has(l.id));
+
+    if (isLastInModule || moduleNowComplete) {
+      // Celebrate when the module's last lesson is finished.
+      setResultModuleIdx(moduleIdx);
       setView('result');
+    } else {
+      // Advance to the next lesson within this module.
+      setLessonTarget({ moduleIdx, lessonIdx: lessonIdx + 1 });
     }
   };
 
@@ -70,7 +81,7 @@ export default function App() {
       ids.forEach(id => n.delete(id));
       return n;
     });
-    setView('lesson');
+    openLesson(moduleIdx, 0);
   };
 
   const resultMod        = MODULES[resultModuleIdx];
@@ -90,12 +101,12 @@ export default function App() {
         <AnimatePresence mode="wait">
           {view === 'home' && (
             <Screen key="home">
-              <HomeDashboard onNavigate={navigate} completedLessons={completedLessons} xp={xp} mistakes={mistakes} onRestartModule={restartModule}/>
+              <HomeDashboard onNavigate={navigate} onOpenModulePath={openModulePath} completedLessons={completedLessons} xp={xp} mistakes={mistakes}/>
             </Screen>
           )}
           {view === 'path' && (
             <Screen key="path">
-              <LearningPath onNavigate={navigate} completedLessons={completedLessons} onRestartModule={restartModule}/>
+              <LearningPath onNavigate={navigate} onOpenLesson={openLesson} completedLessons={completedLessons} onRestartModule={restartModule} moduleIdx={pathModuleIdx}/>
             </Screen>
           )}
           {view === 'lesson' && (
@@ -104,7 +115,7 @@ export default function App() {
                 onNavigate={navigate}
                 onLessonComplete={handleLessonComplete}
                 onMistake={noteMistake}
-                completedLessons={completedLessons}
+                target={lessonTarget}
                 streak={USER_STREAK}
               />
             </Screen>

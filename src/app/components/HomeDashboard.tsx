@@ -1,325 +1,352 @@
 import { useState } from "react";
-import { motion } from "motion/react";
-import { CheckCircle2, Lock, ChevronRight, Zap, Play, BookOpen, Sparkles, ArrowRight, Send, GraduationCap, Layers, RotateCcw, AlertCircle } from "lucide-react";
-import { TactileButton } from "./TactileButton";
-import { GitHubLink } from "./GitHubLink";
+import { motion, AnimatePresence } from "motion/react";
+import { ArrowRight, ChevronRight, AlertCircle, Check, Zap, FlaskConical, ListChecks } from "lucide-react";
 import { useIsMobile } from "./ui/use-mobile";
-import { MODULES, USER_NAME, USER_STREAK, computeModuleStatus, getCurrentModule } from "../data/courseData";
+import { MODULES, USER_NAME, USER_STREAK, getCurrentModule } from "../data/courseData";
+
+// Deck carousel: chosen card slides aside & recedes back; the next card rises
+// from behind on the opposite side to the front.
+const deckVariants = {
+  enter:  (d: number) => ({ x: d > 0 ? 64 : -64, scale: 0.92, opacity: 0 }),
+  center: { x: 0, scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 320, damping: 30 } },
+  exit:   (d: number) => ({ x: d > 0 ? -64 : 64, scale: 0.92, opacity: 0, transition: { duration: 0.26, ease: 'easeIn' } }),
+};
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
 
 interface HomeDashboardProps {
   onNavigate: (v: View) => void;
+  onOpenModulePath: (moduleIdx: number) => void;
   completedLessons: Set<string>;
   xp: number;
   mistakes: Set<string>;
-  onRestartModule: (moduleIdx: number) => void;
 }
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const FILLED = [true, true, true, true, true, false, false];
 
-function LessonRow({ title, done, current }: { title: string; done: boolean; current?: boolean }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid #F2EFEA' }}>
-      {done ? (
-        <div style={{ width: 24, height: 24, background: '#ECFDF3', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <CheckCircle2 size={14} color="#22C55E" strokeWidth={2.5} />
+// featured selection: -1 = Module 0 (Phở), 0..3 = MODULES index
+const PHO = -1;
+
+export function HomeDashboard({ onNavigate, onOpenModulePath, completedLessons, xp, mistakes }: HomeDashboardProps) {
+  const isMobile = useIsMobile();
+  const { index: currentIdx } = getCurrentModule(completedLessons);
+  const started = MODULES.some(m => m.lessons.some(l => completedLessons.has(l.id)));
+  const [featured, setFeatured] = useState<number>(started ? currentIdx : PHO);
+  const [dir, setDir] = useState(0);
+  const selectFeatured = (target: number) => {
+    if (target === featured) return;
+    setDir(target > featured ? 1 : -1);
+    setFeatured(target);
+  };
+
+  const openModule = (mi: number) => onOpenModulePath(mi);
+
+  // ── pieces ────────────────────────────────────────────────────────
+  const welcome = (
+    <h2 style={{ fontFamily: 'var(--atl-font-display)', fontSize: isMobile ? '22px' : '24px', fontWeight: 800, color: 'var(--atl-ink)', margin: 0, letterSpacing: '-0.02em' }}>
+      Welcome, {USER_NAME}
+    </h2>
+  );
+
+  const streakCard = (
+    <div style={{ background: 'var(--atl-surface)', borderRadius: 22, border: '1.5px solid var(--atl-hairline)', boxShadow: '0 1px 2px rgba(28,27,42,.05), 0 10px 28px rgba(28,27,42,.06)', padding: 22 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontFamily: 'var(--atl-font-display)', fontSize: '40px', fontWeight: 800, color: 'var(--atl-ink)', lineHeight: 1 }}>{USER_STREAK}</span>
+            <Zap size={26} fill="var(--atl-streak)" color="var(--atl-streak)" strokeWidth={0} />
+          </div>
+          <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: '13px', fontWeight: 600, color: 'var(--atl-ink-soft)', margin: '8px 0 0' }}>
+            day streak — keep it going
+          </p>
         </div>
-      ) : current ? (
-        <div style={{ width: 24, height: 24, background: 'linear-gradient(135deg,#2E5BFF,#5B7BFF)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 0 0 3px rgba(46,91,255,.18)' }}>
-          <Play size={9} color="white" fill="white" />
-        </div>
-      ) : (
-        <div style={{ width: 24, height: 24, background: '#F2EFEA', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Lock size={11} color="#A7A3AD" strokeWidth={2.5} />
-        </div>
-      )}
-      <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '14px', fontWeight: current ? 600 : 500, color: done ? '#6B6A7B' : current ? '#1C1B2A' : '#A7A3AD', lineHeight: 1 }}>
-        {title}
+        <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '12px', fontWeight: 700, color: '#5A700A', background: 'linear-gradient(135deg,#F9FCE4,#F0FAB8)', border: '1.5px solid #D9EF6A', borderRadius: 100, padding: '5px 11px' }}>✦ {xp} XP</span>
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        {DAYS.map((d, i) => {
+          const today = i === 4;
+          return (
+            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: '100%', aspectRatio: '1', maxWidth: 30, borderRadius: '50%', background: FILLED[i] ? (today ? 'linear-gradient(135deg,#B9E534,#8DC21A)' : '#EAF5C3') : 'var(--atl-sunken)', border: today ? '2px solid #A0C828' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {FILLED[i] && <Zap size={11} fill={today ? '#fff' : '#8DC21A'} color={today ? '#fff' : '#8DC21A'} strokeWidth={0} />}
+              </div>
+              <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '10px', fontWeight: 700, color: today ? '#5A700A' : 'var(--atl-ink-faint)' }}>{d}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const secondary = (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <SecondaryTile icon={<ListChecks size={18} color="#fff" strokeWidth={2.4} />} grad="linear-gradient(135deg,#8B5CF6,#A78BFA)" title="Quiz" badge="Soon" />
+      <SecondaryTile icon={<FlaskConical size={18} color="#fff" strokeWidth={2.4} />} grad="linear-gradient(135deg,#10B981,#34D399)" title="Lab" onClick={() => onNavigate('simulator')} />
+    </div>
+  );
+
+  const mistakesAlert = mistakes.size > 0 && (
+    <motion.button
+      whileHover={{ x: 2 }} onClick={() => onNavigate('review')}
+      style={{ display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer', background: 'var(--atl-error-bg)', border: '1.5px solid #FECDD3', borderRadius: 14, padding: '12px 16px', width: '100%' }}>
+      <AlertCircle size={18} color="var(--atl-error)" strokeWidth={2.4} style={{ flexShrink: 0 }} />
+      <span style={{ flex: 1, fontFamily: 'var(--atl-font-body)', fontSize: '13px', fontWeight: 600, color: 'var(--atl-ink)' }}>
+        Review {mistakes.size} mistake{mistakes.size === 1 ? '' : 's'}
       </span>
+      <ChevronRight size={16} color="#E11D48" style={{ flexShrink: 0 }} />
+    </motion.button>
+  );
+
+  const jumpHeader = (
+    <h2 style={{ fontFamily: 'var(--atl-font-display)', fontSize: isMobile ? '22px' : '24px', fontWeight: 800, color: 'var(--atl-ink)', margin: 0, letterSpacing: '-0.02em' }}>
+      {featured === PHO ? 'Start here' : 'Jump back in'}
+    </h2>
+  );
+
+  const featuredCard = (
+    <FeaturedCard
+      featured={featured} dir={dir} isMobile={isMobile} completedLessons={completedLessons}
+      onStart={() => featured === PHO ? onNavigate('diagrams') : openModule(featured)}
+    />
+  );
+
+  const tiles = (
+    <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 2, marginTop: 10 }}>
+      <ModuleTile selected={featured === PHO} onClick={() => selectFeatured(PHO)} grad="linear-gradient(135deg,#F97316,#FB923C)" emblem="🍜" />
+      {MODULES.map((m, mi) => (
+        <ModuleTile key={m.id} selected={featured === mi} onClick={() => selectFeatured(mi)}
+          grad={`linear-gradient(135deg,${m.nodeColor[0]},${m.nodeColor[1]})`} emblem={`${mi + 1}`}
+          done={m.lessons.every(l => completedLessons.has(l.id))} />
+      ))}
+    </div>
+  );
+
+  // ── layout ────────────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <div style={{ minHeight: '100%', background: 'var(--atl-canvas)' }}>
+        <div style={{ maxWidth: 560, margin: '0 auto', padding: '20px 16px 40px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {welcome}
+          {jumpHeader}
+          {featuredCard}
+          {tiles}
+          {streakCard}
+          {secondary}
+          {mistakesAlert}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minHeight: '100%', background: 'var(--atl-canvas)' }}>
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '36px 24px 56px', display: 'grid', gridTemplateColumns: '330px 1fr', gap: 32, alignItems: 'start' }}>
+        {/* LEFT */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {welcome}
+          {streakCard}
+          {secondary}
+          {mistakesAlert}
+        </div>
+        {/* RIGHT */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {jumpHeader}
+          {featuredCard}
+          {tiles}
+        </div>
+      </div>
     </div>
   );
 }
 
-export function HomeDashboard({ onNavigate, completedLessons, xp, mistakes, onRestartModule }: HomeDashboardProps) {
-  const isMobile = useIsMobile();
-  const { index: currentIdx } = getCurrentModule(completedLessons);
-  // Which module the RECOMMENDED card previews. null = follow the current module.
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
-  const activeIdx = selectedIdx ?? currentIdx;
-  const mod = MODULES[activeIdx];
-  const modIdx = activeIdx;
-  const activeStatus = computeModuleStatus(activeIdx, completedLessons);
-  const isRecommended = activeIdx === currentIdx;
+/* ─────────────────────────────────────────────────────────────────────
+   Featured card — Brilliant "Jump back in" style, warm-paper light.
+   Stacked-card depth, illustration, sub-lesson progress rows, big CTA.
+   ──────────────────────────────────────────────────────────────────── */
+function FeaturedCard({ featured, dir, isMobile, completedLessons, onStart }: {
+  featured: number; dir: number; isMobile: boolean; completedLessons: Set<string>; onStart: () => void;
+}) {
+  const isPho = featured === -1;
+  const mod = isPho ? null : MODULES[featured];
+  const accent = isPho ? '#F97316' : mod!.accent;
+  const accent2 = isPho ? '#FB923C' : mod!.nodeColor[1];
+
+  const eyebrow = isPho ? 'Module 0 · Introduction' : `Module ${featured + 1}`;
+  const title = isPho ? 'The Phở Protocol' : mod!.title;
+
+  // sub-steps shown inside the card
+  const steps = isPho
+    ? [{ id: 's1', text: 'The story', done: false }, { id: 's2', text: 'Be the waiter', done: false }]
+    : mod!.lessons.slice(0, 3).map(l => ({ id: l.id, text: l.title, done: completedLessons.has(l.id) }));
+  const firstUndone = steps.findIndex(s => !s.done);
+
+  const ctaLabel = isPho
+    ? 'Start here'
+    : (mod!.lessons.some(l => completedLessons.has(l.id)) ? 'Continue' : 'Start');
+
+  // Horizontal deck: the previous/next module cards peek out on the sides.
+  // First item (Phở) → cards stacked on the right; last → on the left.
+  const order = [-1, 0, 1, 2, 3];
+  const pos = order.indexOf(featured);
+  const accentOf = (f: number) => (f === -1 ? '#F97316' : MODULES[f].accent);
+  const sideGhost = (key: string, side: 'left' | 'right', far: boolean, hint: string) => {
+    const inset = far ? 20 : 12;
+    const out = far ? 36 : 22;   // how far it peeks past the front card
+    const into = far ? 56 : 34;  // how far it tucks behind the front card
+    const horiz = side === 'right' ? { left: into, right: -out } : { right: into, left: -out };
+    return <div key={key} style={{ position: 'absolute', top: inset, bottom: inset, borderRadius: 24, background: 'var(--atl-surface)', border: `1.5px solid ${hint}45`, boxShadow: '0 10px 26px rgba(28,27,42,.06)', opacity: far ? .5 : .85, zIndex: 0, ...horiz }} />;
+  };
+  const ghosts = [
+    pos >= 2                 && sideGhost('lf', 'left',  true,  accentOf(order[pos - 2])),
+    pos >= 1                 && sideGhost('ln', 'left',  false, accentOf(order[pos - 1])),
+    pos <= order.length - 3  && sideGhost('rf', 'right', true,  accentOf(order[pos + 2])),
+    pos <= order.length - 2  && sideGhost('rn', 'right', false, accentOf(order[pos + 1])),
+  ];
 
   return (
-    <div style={{ minHeight: '100%', background: 'var(--atl-canvas)', position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', top: -80, right: -80, width: 300, height: 300, background: 'radial-gradient(circle,rgba(46,91,255,.05),transparent 70%)', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: -80, left: -80, width: 300, height: 300, background: 'radial-gradient(circle,rgba(43,212,107,.05),transparent 70%)', pointerEvents: 'none' }} />
+    <div style={{ position: 'relative' }}>
+      {ghosts}
+      <AnimatePresence custom={dir} mode="popLayout" initial={false}>
+        <motion.div
+          key={featured} custom={dir} variants={deckVariants} initial="enter" animate="center" exit="exit"
+          style={{
+            position: 'relative', zIndex: 1, overflow: 'hidden', borderRadius: 24,
+            display: 'flex', flexDirection: 'column', minHeight: isMobile ? 460 : 492,
+            border: `1.5px solid ${isPho ? '#F8C99B' : 'var(--atl-hairline)'}`,
+            background: isPho ? 'linear-gradient(140deg,#FFF3E4 0%,#FFE7CE 50%,#FFEFDB 100%)' : 'var(--atl-surface)',
+            boxShadow: '0 2px 8px rgba(28,27,42,.05), 0 22px 56px rgba(28,27,42,.12)',
+            padding: isMobile ? 22 : 28,
+          }}>
+        {/* eyebrow + title */}
+        <div style={{ textAlign: 'center', marginBottom: 18 }}>
+          <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11px', fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: accent }}>{eyebrow}</span>
+          <h3 style={{ fontFamily: 'var(--atl-font-display)', fontSize: isMobile ? '24px' : '28px', fontWeight: 800, color: isPho ? '#7C2D12' : 'var(--atl-ink)', margin: '4px 0 0', letterSpacing: '-0.025em', lineHeight: 1.1 }}>{title}</h3>
+        </div>
 
-      {/* ── Featured: How API works (interactive story) ── */}
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: isMobile ? '20px 16px 0' : '28px 24px 0', position: 'relative' }}>
-        <motion.button
-          initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45 }}
-          whileHover={{ y: -3, boxShadow: '0 4px 12px rgba(194,65,12,.10),0 22px 50px rgba(124,58,237,.16)' }}
-          whileTap={{ scale: .995 }}
-          onClick={() => onNavigate('diagrams')}
-          style={{ position: 'relative', overflow: 'hidden', width: '100%', textAlign: 'left', cursor: 'pointer', border: '1.5px solid #FBD9B9', borderRadius: 24, padding: isMobile ? '18px 18px' : '22px 26px', background: 'linear-gradient(115deg,#FFF6ED 0%,#FDEFEF 38%,#EEF1FF 100%)', display: 'flex', alignItems: 'center', gap: isMobile ? 14 : 22, boxShadow: '0 2px 8px rgba(28,27,42,.05),0 14px 40px rgba(124,58,237,.10)' }}>
-
-          {/* floating decorative emojis */}
-          {[
-            { e: '🔌', top: '16%', left: '53%', size: 20, dur: 5 },
-            { e: '📦', top: '64%', left: '45%', size: 18, dur: 6 },
-            { e: '⚡', top: '28%', left: '71%', size: 15, dur: 4.5 },
-          ].map((d, i) => (
-            <motion.span key={i} aria-hidden="true"
-              animate={{ y: [0, -7, 0], opacity: [.45, .8, .45] }} transition={{ duration: d.dur, repeat: Infinity, ease: 'easeInOut', delay: i * .4 }}
-              style={{ position: 'absolute', top: d.top, left: d.left, fontSize: d.size, pointerEvents: 'none' }}>{d.e}</motion.span>
-          ))}
-          <div style={{ position: 'absolute', right: -30, top: -40, width: 180, height: 180, background: 'radial-gradient(circle,rgba(124,58,237,.10),transparent 70%)', pointerEvents: 'none' }} />
-
-          {/* phở medallion */}
-          <motion.div animate={{ rotate: [-5, 5, -5], y: [0, -4, 0] }} transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
-            style={{ width: 64, height: 64, flexShrink: 0, borderRadius: 20, background: 'linear-gradient(135deg,#FFFFFF,#FFF3E6)', border: '1.5px solid #FBD9B9', boxShadow: '0 6px 18px rgba(194,65,12,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, zIndex: 1 }}>
-            🍜
-          </motion.div>
-
-          {/* text */}
-          <div style={{ flex: 1, minWidth: 0, zIndex: 1 }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#FFF', border: '1.5px solid #FBD9B9', borderRadius: '100px', padding: '3px 10px', marginBottom: 8 }}>
-              <Sparkles size={11} color="#C2410C" />
-              <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '10px', fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#C2410C' }}>Start here · Interactive</span>
-            </div>
-            <h2 style={{ fontFamily: 'var(--atl-font-display)', fontSize: isMobile ? '18px' : '22px', fontWeight: 800, color: '#1C1B2A', margin: '0 0 4px', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
-              How does an API actually work?
-            </h2>
-          </div>
-
-          {/* CTA */}
-          <div style={{ flexShrink: 0, zIndex: 1, display: 'flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#2E5BFF,#5B7BFF)', color: '#FFF', borderRadius: '100px', padding: isMobile ? '11px 14px' : '12px 22px', fontFamily: 'var(--atl-font-body)', fontSize: '15px', fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.25),0 6px 18px rgba(46,91,255,.30)' }}>
-            {!isMobile && 'Explore'} <ArrowRight size={16} />
-          </div>
-        </motion.button>
-      </div>
-
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: isMobile ? '16px 16px 32px' : '20px 24px 32px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1.35fr)', gap: isMobile ? 20 : 28, position: 'relative' }}>
-
-        {/* ── LEFT ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4 }}>
-            <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: '14px', fontWeight: 500, color: '#6B6A7B', margin: '0 0 4px' }}>Welcome back 👋</p>
-            <h1 style={{ fontFamily: 'var(--atl-font-display)', fontSize: '32px', fontWeight: 800, color: '#1C1B2A', margin: 0, letterSpacing: '-0.03em', lineHeight: 1.15 }}>
-              Hi, {USER_NAME}!
-            </h1>
-          </motion.div>
-
-          {/* Streak card */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4, delay: .08 }}
-            style={{ background: '#FFF', borderRadius: 20, padding: 20, border: '1.5px solid #F2EFEA', boxShadow: '0 1px 2px rgba(28,27,42,.05),0 8px 24px rgba(28,27,42,.06)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div>
-                <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11px', fontWeight: 700, letterSpacing: '.08em', color: '#A7A3AD', textTransform: 'uppercase', margin: '0 0 4px' }}>Streak</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Zap size={20} fill="#B9E534" color="#B9E534" strokeWidth={0} />
-                  <span style={{ fontFamily: 'var(--atl-font-display)', fontSize: '28px', fontWeight: 800, color: '#1C1B2A', lineHeight: 1 }}>{USER_STREAK}</span>
-                  <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '14px', color: '#6B6A7B', fontWeight: 500 }}>days</span>
-                </div>
-              </div>
-              <div style={{ background: 'linear-gradient(135deg,#F9FCE4,#F0FAB8)', borderRadius: 12, padding: '8px 12px', border: '1.5px solid #D9EF6A' }}>
-                <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '12px', fontWeight: 700, color: '#5A700A' }}>✦ {xp} XP</span>
+        {/* illustration */}
+        {isPho
+          ? <FlowPreview />
+          : (
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0 22px' }}>
+              <div style={{ width: 116, height: 116, borderRadius: 28, background: `linear-gradient(140deg,${accent},${accent2})`, boxShadow: `inset 0 2px 0 rgba(255,255,255,.3), 0 16px 34px ${accent}45`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontFamily: 'var(--atl-font-display)', fontSize: '52px', fontWeight: 800, color: '#fff' }}>{featured + 1}</span>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {DAYS.map((day, i) => {
-                const filled = FILLED[i];
-                const today = i === 4;
-                return (
-                  <div key={day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-                    <div style={{ width: '100%', aspectRatio: '1', borderRadius: '50%', background: filled ? (today ? 'linear-gradient(135deg,#B9E534,#8DC21A)' : '#EAF5C3') : '#F2EFEA', border: today ? '2px solid #A0C828' : `2px solid ${filled ? '#D4EC70' : '#ECE8E1'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: today ? '0 0 0 3px rgba(185,229,52,.2)' : 'none' }}>
-                      {filled && <Zap size={12} fill={today ? 'white' : '#8DC21A'} color={today ? 'white' : '#8DC21A'} strokeWidth={0} />}
-                    </div>
-                    <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '10px', fontWeight: 700, color: today ? '#5A700A' : '#A7A3AD' }}>{day}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </motion.div>
-
-          {/* Quick stats */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4, delay: .14 }}
-            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {[
-              { label: 'Lessons done', value: completedLessons.size, Icon: GraduationCap, accent: '#2E5BFF', tint: '#EEF3FF', border: '#DCE6FF' },
-              { label: 'Modules', value: `${currentIdx + 1}/4`, Icon: Layers, accent: '#16A34A', tint: '#ECFDF3', border: '#C7F0D6' },
-            ].map(s => (
-              <div key={s.label} style={{ background: '#FFF', borderRadius: 16, padding: 16, border: '1.5px solid #F2EFEA', boxShadow: '0 1px 2px rgba(28,27,42,.05),0 4px 12px rgba(28,27,42,.04)' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 11, background: s.tint, border: `1.5px solid ${s.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
-                  <s.Icon size={18} color={s.accent} strokeWidth={2.4} />
-                </div>
-                <span style={{ fontFamily: 'var(--atl-font-display)', fontSize: '24px', fontWeight: 800, color: '#1C1B2A', display: 'block', lineHeight: 1 }}>{s.value}</span>
-                <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '12px', color: '#6B6A7B', fontWeight: 500 }}>{s.label}</span>
-              </div>
-            ))}
-          </motion.div>
-
-          {/* API Testing Lab — direct entry */}
-          <motion.button
-            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4, delay: .18 }}
-            whileHover={{ y: -3, boxShadow: '0 4px 12px rgba(46,91,255,.14),0 22px 50px rgba(46,91,255,.20)' }}
-            whileTap={{ scale: .99 }}
-            onClick={() => onNavigate('simulator')}
-            style={{ position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: 'pointer', border: '1.5px solid #BFD0FF', borderRadius: 20, padding: '18px 20px', background: 'linear-gradient(135deg,#EEF3FF,#E5ECFF)', display: 'flex', alignItems: 'center', gap: 16, boxShadow: '0 1px 2px rgba(28,27,42,.05),0 10px 28px rgba(46,91,255,.12)' }}>
-            <div style={{ position: 'absolute', right: -24, top: -30, width: 130, height: 130, background: 'radial-gradient(circle,rgba(46,91,255,.12),transparent 70%)', pointerEvents: 'none' }} />
-            <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              style={{ width: 52, height: 52, flexShrink: 0, borderRadius: 16, background: 'linear-gradient(135deg,#2E5BFF,#5B7BFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.25),0 6px 16px rgba(46,91,255,.30)', zIndex: 1 }}>
-              <Send size={22} color="white" />
-            </motion.div>
-            <div style={{ flex: 1, minWidth: 0, zIndex: 1 }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#FFF', border: '1.5px solid #BFD0FF', borderRadius: '100px', padding: '2px 9px', marginBottom: 6 }}>
-                <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '10px', fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#2E5BFF' }}>Interactive</span>
-              </div>
-              <h3 style={{ fontFamily: 'var(--atl-font-display)', fontSize: '18px', fontWeight: 800, color: '#1C1B2A', margin: '0 0 2px', letterSpacing: '-0.02em', lineHeight: 1.15 }}>API Testing Lab</h3>
-              <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: '13px', color: '#6B6A7B', margin: 0, fontWeight: 500 }}>Send real requests · test all 4 methods</p>
-            </div>
-            <ArrowRight size={18} color="#2E5BFF" style={{ flexShrink: 0, zIndex: 1 }} />
-          </motion.button>
-
-          {/* Mistakes to review — only when there are noted mistakes */}
-          {mistakes.size > 0 && (
-            <motion.button
-              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4, delay: .22 }}
-              whileHover={{ y: -3, boxShadow: '0 4px 12px rgba(244,63,94,.12),0 22px 50px rgba(244,63,94,.18)' }}
-              whileTap={{ scale: .99 }}
-              onClick={() => onNavigate('review')}
-              style={{ position: 'relative', overflow: 'hidden', textAlign: 'left', cursor: 'pointer', border: '1.5px solid #FECDD3', borderRadius: 20, padding: '18px 20px', background: 'linear-gradient(135deg,#FFF5F6,#FFEAEC)', display: 'flex', alignItems: 'center', gap: 16, boxShadow: '0 1px 2px rgba(28,27,42,.05),0 10px 28px rgba(244,63,94,.10)' }}>
-              <div style={{ width: 52, height: 52, flexShrink: 0, borderRadius: 16, background: 'linear-gradient(135deg,#F43F5E,#FB7185)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.25),0 6px 16px rgba(244,63,94,.30)', zIndex: 1 }}>
-                <AlertCircle size={24} color="white" />
-              </div>
-              <div style={{ flex: 1, minWidth: 0, zIndex: 1 }}>
-                <h3 style={{ fontFamily: 'var(--atl-font-display)', fontSize: '18px', fontWeight: 800, color: '#1C1B2A', margin: '0 0 2px', letterSpacing: '-0.02em', lineHeight: 1.15 }}>Review your mistakes</h3>
-                <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: '13px', color: '#6B6A7B', margin: 0, fontWeight: 500 }}>
-                  {mistakes.size} question{mistakes.size === 1 ? '' : 's'} to revisit · with explanations
-                </p>
-              </div>
-              <ChevronRight size={18} color="#E11D48" style={{ flexShrink: 0, zIndex: 1 }} />
-            </motion.button>
           )}
 
-        </div>
-
-        {/* ── RIGHT ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4, delay: .05 }}>
-            <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11px', fontWeight: 700, letterSpacing: '.08em', color: '#A7A3AD', textTransform: 'uppercase', margin: '0 0 12px' }}>Start Learning</p>
-
-            {/* Course card */}
-            <motion.div whileHover={{ y: -3, boxShadow: '0 2px 4px rgba(28,27,42,.06),0 20px 56px rgba(28,27,42,.12)' }}
-              style={{ background: '#FFF', borderRadius: 24, border: '1.5px solid #ECE8E1', boxShadow: '0 1px 2px rgba(28,27,42,.05),0 12px 36px rgba(28,27,42,.08)', overflow: 'hidden', transition: 'box-shadow .25s' }}>
-
-              {/* Hero */}
-              <div style={{ background: `linear-gradient(135deg,${mod.accent}20,${mod.accent}08)`, padding: '24px 24px 20px', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', top: -20, right: -20, width: 120, height: 120, background: `${mod.accent}18`, borderRadius: '50%' }} />
-                <div style={{ position: 'relative' }}>
-                  {activeStatus === 'completed' ? (
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'linear-gradient(135deg,#22C55E,#4ADE80)', borderRadius: '100px', padding: '4px 12px', marginBottom: 12, boxShadow: '0 2px 8px rgba(34,197,94,.25)' }}>
-                      <CheckCircle2 size={11} color="white" strokeWidth={3} />
-                      <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11px', fontWeight: 800, color: 'white', letterSpacing: '.06em', textTransform: 'uppercase' }}>Completed</span>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'linear-gradient(135deg,#2E5BFF,#5B7BFF)', borderRadius: '100px', padding: '4px 12px', marginBottom: 12, boxShadow: '0 2px 8px rgba(46,91,255,.25)' }}>
-                      <span style={{ fontSize: 10 }}>⭐</span>
-                      <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11px', fontWeight: 800, color: 'white', letterSpacing: '.06em', textTransform: 'uppercase' }}>Recommended</span>
-                    </div>
-                  )}
-                  <h2 style={{ fontFamily: 'var(--atl-font-display)', fontSize: '22px', fontWeight: 800, color: '#1C1B2A', margin: '0 0 6px', letterSpacing: '-0.02em' }}>
-                    Module {modIdx + 1} · {mod.title}
-                  </h2>
-                  <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: '14px', color: '#6B6A7B', margin: 0, fontWeight: 500 }}>{mod.subtitle}</p>
-                  {/* Progress */}
-                  <div style={{ marginTop: 16 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '12px', fontWeight: 600, color: '#6B6A7B' }}>Progress</span>
-                      <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '12px', fontWeight: 700, color: mod.accent }}>
-                        {mod.lessons.filter(l => completedLessons.has(l.id)).length}/{mod.lessons.length} lessons
-                      </span>
-                    </div>
-                    <div style={{ height: 8, background: '#ECE8E1', borderRadius: '100px', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${(mod.lessons.filter(l => completedLessons.has(l.id)).length / mod.lessons.length) * 100}%`, background: `linear-gradient(90deg,${mod.accent},${mod.accent}BB)`, borderRadius: '100px', transition: 'width .6s ease' }} />
-                    </div>
-                  </div>
+        {/* sub-step rows */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 18 }}>
+          {steps.map((s, i) => {
+            const isCurrent = i === firstUndone;
+            return (
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 4px' }}>
+                <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: s.done ? accent : isCurrent ? '#fff' : 'var(--atl-sunken)',
+                  border: isCurrent ? `2.5px solid ${accent}` : s.done ? 'none' : `2px solid ${isPho ? '#F8C99B' : 'var(--atl-hairline)'}`,
+                  boxShadow: isCurrent ? `0 0 0 4px ${accent}22` : 'none' }}>
+                  {s.done && <Check size={14} color="#fff" strokeWidth={3} />}
                 </div>
+                <span style={{ flex: 1, fontFamily: 'var(--atl-font-body)', fontSize: '15px', fontWeight: s.done || isCurrent ? 700 : 600, color: s.done ? (isPho ? '#9A5532' : 'var(--atl-ink-soft)') : isCurrent ? (isPho ? '#7C2D12' : 'var(--atl-ink)') : 'var(--atl-ink-faint)' }}>{s.text}</span>
               </div>
-
-              {/* Lesson list */}
-              <div style={{ padding: '0 24px' }}>
-                {mod.lessons.map((l, i) => (
-                  <LessonRow key={l.id} title={l.title} done={completedLessons.has(l.id)} current={!completedLessons.has(l.id) && i === mod.lessons.filter(ll => completedLessons.has(ll.id)).length} />
-                ))}
-              </div>
-
-              <div style={{ padding: '20px 24px' }}>
-                {activeStatus === 'completed' ? (
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <button
-                      onClick={() => onRestartModule(modIdx)}
-                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, flexShrink: 0, background: '#FFF', border: '1.5px solid #ECE8E1', borderRadius: '100px', padding: '0 18px', height: 48, cursor: 'pointer', fontFamily: 'var(--atl-font-body)', fontSize: '14px', fontWeight: 700, color: '#6B6A7B', boxShadow: '0 1px 3px rgba(28,27,42,.06)' }}>
-                      <RotateCcw size={15} /> Restart module
-                    </button>
-                    <div style={{ flex: 1 }}>
-                      <TactileButton variant="continue" fullWidth onClick={() => onNavigate('path')}>
-                        Review in learning path →
-                      </TactileButton>
-                    </div>
-                  </div>
-                ) : (
-                  <TactileButton variant="primary" fullWidth onClick={() => onNavigate('lesson')}>
-                    {mod.lessons.some(l => completedLessons.has(l.id)) ? 'Continue Learning →' : 'Start Lesson →'}
-                  </TactileButton>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-
-          {/* Module selectors */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4, delay: .2 }}>
-            <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11px', fontWeight: 700, letterSpacing: '.08em', color: '#A7A3AD', textTransform: 'uppercase', margin: '0 0 10px' }}>All Modules</p>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {MODULES.map((m, mi) => {
-                const status = computeModuleStatus(mi, completedLessons);
-                const locked = status === 'locked';
-                const selected = mi === activeIdx;
-                return (
-                  <motion.button key={m.id} whileHover={!locked ? { y: -3 } : {}} whileTap={!locked ? { scale: .97 } : {}}
-                    onClick={() => !locked && setSelectedIdx(mi)}
-                    style={{ flex: 1, minWidth: 72, border: `2px solid ${locked ? '#ECE8E1' : selected ? m.accent : m.accent + '40'}`, background: locked ? '#F9F7F4' : selected ? `${m.accent}1F` : `${m.accent}10`, borderRadius: 14, padding: '12px 10px', cursor: locked ? 'default' : 'pointer', textAlign: 'center', transition: 'background .2s,border-color .2s', boxShadow: selected ? `0 0 0 3px ${m.accent}22` : 'none' }}>
-                    <div style={{ width: 32, height: 32, background: locked ? '#ECE8E1' : `linear-gradient(135deg,${m.accent},${m.accent}CC)`, borderRadius: 10, margin: '0 auto 6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {locked ? <Lock size={14} color="#A7A3AD" /> : status === 'completed' ? <CheckCircle2 size={15} color="white" strokeWidth={2.5} /> : <BookOpen size={14} color="white" />}
-                    </div>
-                    <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11px', fontWeight: selected ? 700 : 600, color: locked ? '#A7A3AD' : '#1C1B2A', display: 'block', lineHeight: 1.2 }}>{m.title}</span>
-                  </motion.button>
-                );
-              })}
-            </div>
-          </motion.div>
-
-          {/* Path link */}
-          <motion.button initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4, delay: .26 }}
-            whileHover={{ y: -2 }} whileTap={{ scale: .98 }} onClick={() => onNavigate('path')}
-            style={{ background: '#FFF', border: '1.5px solid #ECE8E1', borderRadius: 16, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', boxShadow: '0 2px 8px rgba(28,27,42,.05)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 18 }}>🏔️</span>
-              <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '14px', fontWeight: 700, color: '#1C1B2A' }}>View learning path</span>
-            </div>
-            <ChevronRight size={16} color="#A7A3AD" />
-          </motion.button>
-
-          {/* GitHub repo link */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4, delay: .3 }}>
-            <GitHubLink variant="card" label="View source on GitHub" />
-          </motion.div>
+            );
+          })}
         </div>
+
+        {/* big CTA — pinned to the bottom so every card is the same height */}
+        <div style={{ marginTop: 'auto' }}>
+          <BigButton accent={accent} accent2={accent2} onClick={onStart}>{ctaLabel}</BigButton>
+        </div>
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function BigButton({ children, accent, accent2, onClick }: { children: React.ReactNode; accent: string; accent2: string; onClick: () => void }) {
+  // derive a darker "ledge" by overlaying; keep it simple with a fixed dark tint
+  const rest = `inset 0 1px 0 rgba(255,255,255,0.25), 0 4px 0 rgba(0,0,0,0.18), 0 10px 26px ${accent}55`;
+  const press = `inset 0 1px 0 rgba(255,255,255,0.15), 0 0px 0 rgba(0,0,0,0.18), 0 4px 10px ${accent}44`;
+  return (
+    <motion.button
+      initial="rest" whileHover="hover" whileTap="press"
+      variants={{ rest: { y: 0, boxShadow: rest, filter: 'brightness(1)' }, hover: { y: -1, boxShadow: rest, filter: 'brightness(1.05)' }, press: { y: 4, boxShadow: press, filter: 'brightness(.97)', transition: { duration: .08 } } }}
+      transition={{ type: 'spring', stiffness: 600, damping: 32 }}
+      onClick={onClick}
+      style={{ width: '100%', height: 56, borderRadius: 16, border: 'none', cursor: 'pointer',
+        background: `linear-gradient(135deg,${accent},${accent2})`, color: '#fff',
+        fontFamily: 'var(--atl-font-body)', fontSize: '17px', fontWeight: 800, letterSpacing: '.01em',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+      {children} <ArrowRight size={19} />
+    </motion.button>
+  );
+}
+
+/* Client → Server flow with a packet that travels out (request) and back (response). */
+function FlowPreview() {
+  const Node = ({ label, sub, grad }: { label: string; sub: string; grad: string }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+      <div style={{ width: 54, height: 54, borderRadius: 17, background: grad, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.3), 0 8px 18px rgba(124,45,18,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ fontFamily: 'var(--atl-font-display)', fontSize: '20px', fontWeight: 800, color: '#fff' }}>{label[0]}</span>
+      </div>
+      <div style={{ textAlign: 'center', lineHeight: 1.2 }}>
+        <div style={{ fontFamily: 'var(--atl-font-body)', fontSize: '12px', fontWeight: 800, color: '#7C2D12' }}>{label}</div>
+        <div style={{ fontFamily: 'var(--atl-font-body)', fontSize: '10px', fontWeight: 600, color: '#B47C50' }}>{sub}</div>
       </div>
     </div>
+  );
+  return (
+    <div style={{ margin: '4px 0 20px', background: 'rgba(255,255,255,.55)', border: '1.5px solid #FBD9B9', borderRadius: 20, padding: '20px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+      <Node label="Client" sub="waiter" grad="linear-gradient(135deg,#2E5BFF,#5B7BFF)" />
+      <div style={{ position: 'relative', flex: 1, height: 54, display: 'flex', alignItems: 'center', margin: '0 4px' }}>
+        <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 3, transform: 'translateY(-50%)', background: 'repeating-linear-gradient(90deg,#F8C99B 0 6px,transparent 6px 12px)', borderRadius: 100 }} />
+        <motion.div aria-hidden
+          animate={{ left: ['2%', '88%', '88%', '2%', '2%'], background: ['#F97316', '#F97316', '#22C55E', '#22C55E', '#F97316'] }}
+          transition={{ duration: 3.2, times: [0, .35, .5, .85, 1], repeat: Infinity, ease: 'easeInOut' }}
+          style={{ position: 'absolute', top: '50%', width: 14, height: 14, borderRadius: '50%', transform: 'translateY(-50%)', boxShadow: '0 2px 8px rgba(124,45,18,.35)' }} />
+      </div>
+      <Node label="Server" sub="kitchen" grad="linear-gradient(135deg,#F97316,#FB923C)" />
+    </div>
+  );
+}
+
+/* small module selector tile (Brilliant's tile row) */
+function ModuleTile({ selected, onClick, grad, emblem, done }: { selected: boolean; onClick: () => void; grad: string; emblem: string; done?: boolean }) {
+  return (
+    <motion.button whileHover={{ y: -3 }} whileTap={{ scale: .95 }} onClick={onClick}
+      style={{ position: 'relative', flexShrink: 0, width: 64, height: 64, borderRadius: 18, cursor: 'pointer',
+        background: 'var(--atl-surface)', border: `2px solid ${selected ? 'var(--atl-ink)' : 'var(--atl-hairline)'}`,
+        boxShadow: selected ? '0 6px 16px rgba(28,27,42,.14)' : '0 2px 6px rgba(28,27,42,.05)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 8, transition: 'border-color .15s' }}>
+      <div style={{ width: '100%', height: '100%', borderRadius: 12, background: grad, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--atl-font-display)', fontSize: emblem.length > 1 ? 24 : 18, fontWeight: 800, color: '#fff' }}>
+        {emblem}
+      </div>
+      {done && (
+        <div style={{ position: 'absolute', top: -5, right: -5, width: 20, height: 20, borderRadius: '50%', background: 'var(--atl-success)', border: '2px solid var(--atl-canvas)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Check size={11} color="#fff" strokeWidth={3.5} />
+        </div>
+      )}
+    </motion.button>
+  );
+}
+
+/* compact secondary entry (Quiz / Lab) */
+function SecondaryTile({ icon, grad, title, badge, onClick }: { icon: React.ReactNode; grad: string; title: string; badge?: string; onClick?: () => void }) {
+  const disabled = !onClick;
+  return (
+    <motion.button whileHover={disabled ? {} : { y: -3 }} whileTap={disabled ? {} : { scale: .97 }} onClick={onClick}
+      style={{ display: 'flex', alignItems: 'center', gap: 11, textAlign: 'left', cursor: disabled ? 'default' : 'pointer',
+        background: 'var(--atl-surface)', border: '1.5px solid var(--atl-hairline)', borderRadius: 16, padding: '14px 14px',
+        boxShadow: '0 1px 2px rgba(28,27,42,.05), 0 6px 14px rgba(28,27,42,.05)', opacity: disabled ? .72 : 1 }}>
+      <div style={{ width: 38, height: 38, borderRadius: 12, flexShrink: 0, background: disabled ? '#D9D5E0' : grad, boxShadow: disabled ? 'none' : 'inset 0 1px 0 rgba(255,255,255,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {icon}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontFamily: 'var(--atl-font-display)', fontSize: '16px', fontWeight: 800, color: 'var(--atl-ink)', letterSpacing: '-0.01em' }}>{title}</span>
+          {badge && <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '9px', fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: '#8B5CF6', background: '#F3EFFF', border: '1.5px solid #E4D9FF', borderRadius: 100, padding: '2px 7px' }}>{badge}</span>}
+        </div>
+      </div>
+    </motion.button>
   );
 }

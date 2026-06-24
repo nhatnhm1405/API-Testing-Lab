@@ -73,11 +73,12 @@ export function computeModuleStatus(
   moduleIdx: number,
   completedLessons: Set<string>
 ): 'completed' | 'current' | 'locked' {
+  // Free-roam mode: every module is open for testing. A module is only ever
+  // 'completed' (all lessons done) or 'current' (still has lessons to do) —
+  // nothing is locked behind a prerequisite.
   const mod = MODULES[moduleIdx];
   if (mod.lessons.every(l => completedLessons.has(l.id))) return 'completed';
-  if (moduleIdx === 0) return 'current';
-  const prevDone = MODULES[moduleIdx - 1].lessons.every(l => completedLessons.has(l.id));
-  return prevDone ? 'current' : 'locked';
+  return 'current';
 }
 
 export function getCurrentModule(completedLessons: Set<string>) {
