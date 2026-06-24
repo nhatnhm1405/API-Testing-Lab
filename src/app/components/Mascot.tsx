@@ -21,14 +21,37 @@ const getAnim = (s: MascotState) => {
   }
 };
 
-// ── Clawd — Claude's friendly mascot ───────────────────────────────
-// A rounded little critter in Anthropic's signature orange, with the
-// Claude "spark" hovering above. Same props/states as before so it
-// drops in everywhere the old pixel critter was used.
+// ── Clawd — Claude Code's pixel mascot ─────────────────────────────
+// A 12×8 pixel-grid critter in Anthropic's signature orange, with two
+// dark eye pixels. Same props/states as before so it drops in
+// everywhere the old mascot was used. State is conveyed by the body
+// animation (bounce / shake / hover) plus a happy eye-squint on a
+// correct answer.
+const ORANGE = '#D97757';
+const EYE    = '#1A1A1A';
+
+// Orange body pixels as [col, row] on a 12-wide × 8-tall grid.
+const BODY: ReadonlyArray<readonly [number, number]> = [
+  // row 0 — top of head
+  [2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0],[9,0],
+  // row 1 — head (eyes carved out at col 3 & 9)
+  [2,1],[4,1],[5,1],[6,1],[7,1],[8,1],
+  // rows 2-3 — outstretched arms (full width)
+  [0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],[9,2],[10,2],[11,2],
+  [0,3],[1,3],[2,3],[3,3],[4,3],[5,3],[6,3],[7,3],[8,3],[9,3],[10,3],[11,3],
+  // rows 4-5 — lower body
+  [2,4],[3,4],[4,4],[5,4],[6,4],[7,4],[8,4],[9,4],
+  [2,5],[3,5],[4,5],[5,5],[6,5],[7,5],[8,5],[9,5],
+  // rows 6-7 — legs
+  [2,6],[4,6],[7,6],[9,6],
+  [2,7],[4,7],[7,7],[9,7],
+];
+
+// Eye pixel positions (col, row).
+const EYES: ReadonlyArray<readonly [number, number]> = [[3,1],[9,1]];
+
 export function Mascot({ state = 'idle', size = 'md', showBubble, bubbleText }: MascotProps) {
   const px = PX[size];
-  const id = `clawd-${size}`;
-  const EYE = '#3A2218';
 
   return (
     <div style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -54,112 +77,21 @@ export function Mascot({ state = 'idle', size = 'md', showBubble, bubbleText }: 
         </motion.div>
       )}
       <motion.div animate={getAnim(state)} style={{ width: px, height: px }}>
-        <svg viewBox="0 0 64 64" width={px} height={px} xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id={`${id}-body`} x1="32" y1="14" x2="32" y2="58" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#E8956B" />
-              <stop offset="0.55" stopColor="#D97757" />
-              <stop offset="1" stopColor="#C2613F" />
-            </linearGradient>
-            <radialGradient id={`${id}-cheek`} cx="0.5" cy="0.5" r="0.5">
-              <stop stopColor="#F6A883" stopOpacity="0.9" />
-              <stop offset="1" stopColor="#F6A883" stopOpacity="0" />
-            </radialGradient>
-            <filter id={`${id}-shadow`} x="-30%" y="-20%" width="160%" height="150%">
-              <feDropShadow dx="0" dy="2" stdDeviation="1.6" floodColor="#C2613F" floodOpacity="0.35" />
-            </filter>
-          </defs>
-
-          {/* ground shadow */}
-          <ellipse cx="32" cy="57" rx="16" ry="3.4" fill="#1C1B2A" opacity="0.12" />
-
-          {/* the Claude spark, hovering above the head */}
-          <motion.g
-            style={{ transformOrigin: '46px 13px' }}
-            animate={state === 'thinking'
-              ? { rotate: [0, 360], scale: 1 }
-              : state === 'correct'
-                ? { rotate: 0, scale: [1, 1.5, 1] }
-                : { rotate: 0, scale: [1, 1.15, 1] }}
-            transition={state === 'thinking'
-              ? { duration: 4, repeat: Infinity, ease: 'linear' }
-              : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <Spark cx={46} cy={13} r={5} fill="#D97757" />
-          </motion.g>
-
-          {/* feet */}
-          <rect x="22" y="50" width="8" height="7" rx="3.5" fill="#C2613F" />
-          <rect x="34" y="50" width="8" height="7" rx="3.5" fill="#C2613F" />
-
-          {/* arms */}
-          <ellipse cx="13.5" cy="38" rx="4" ry="6" fill="#CE6C4B" />
-          <ellipse cx="50.5" cy="38" rx="4" ry="6" fill="#CE6C4B" />
-
-          {/* body */}
-          <g filter={`url(#${id}-shadow)`}>
-            <path
-              d="M32 13
-                 C20 13 14 21 14 33
-                 C14 46 21 53 32 53
-                 C43 53 50 46 50 33
-                 C50 21 44 13 32 13 Z"
-              fill={`url(#${id}-body)`}
-            />
-          </g>
-          {/* soft top highlight */}
-          <ellipse cx="26" cy="23" rx="7" ry="4.5" fill="#FFFFFF" opacity="0.18" />
-
-          {/* cheeks */}
-          <ellipse cx="22" cy="38" rx="4.5" ry="3" fill={`url(#${id}-cheek)`} />
-          <ellipse cx="42" cy="38" rx="4.5" ry="3" fill={`url(#${id}-cheek)`} />
-
-          {/* face */}
-          {state === 'correct' ? (
-            <g stroke={EYE} strokeWidth={2.6} strokeLinecap="round" fill="none">
-              <path d="M21 31 Q25 26 29 31" />
-              <path d="M35 31 Q39 26 43 31" />
-              <path d="M27 39 Q32 44 37 39" />
-            </g>
-          ) : state === 'wrong' ? (
-            <g stroke={EYE} strokeWidth={2.6} strokeLinecap="round" fill="none">
-              <path d="M22 29 L28 35" /><path d="M28 29 L22 35" />
-              <path d="M36 29 L42 35" /><path d="M42 29 L36 35" />
-              <path d="M27 42 Q32 38 37 42" />
-            </g>
-          ) : state === 'thinking' ? (
-            <>
-              <circle cx="25" cy="30" r="2.6" fill={EYE} />
-              <circle cx="39" cy="30" r="2.6" fill={EYE} />
-              <path d="M28 40 Q32 38 36 40" stroke={EYE} strokeWidth={2.2} strokeLinecap="round" fill="none" />
-            </>
-          ) : (
-            <>
-              <circle cx="25" cy="31" r="3" fill={EYE} />
-              <circle cx="39" cy="31" r="3" fill={EYE} />
-              {/* eye sparkle */}
-              <circle cx="26.1" cy="30" r="0.9" fill="#FFFFFF" />
-              <circle cx="40.1" cy="30" r="0.9" fill="#FFFFFF" />
-              <path d="M28 39 Q32 42 36 39" stroke={EYE} strokeWidth={2.2} strokeLinecap="round" fill="none" />
-            </>
+        {/* 12×8 grid letterboxed inside the square footprint */}
+        <svg viewBox="0 0 12 8" width={px} height={px} xmlns="http://www.w3.org/2000/svg" shapeRendering="crispEdges">
+          {BODY.map(([c, r]) => (
+            <rect key={`b${c}-${r}`} x={c} y={r} width={1} height={1} fill={ORANGE} />
+          ))}
+          {EYES.map(([c, r]) =>
+            state === 'correct' ? (
+              // happy squint — a short bar at the bottom of the eye cell
+              <rect key={`e${c}-${r}`} x={c} y={r + 0.5} width={1} height={0.3} fill={EYE} />
+            ) : (
+              <rect key={`e${c}-${r}`} x={c} y={r} width={1} height={1} fill={EYE} />
+            )
           )}
         </svg>
       </motion.div>
     </div>
-  );
-}
-
-// The Claude four-point spark / sunburst.
-function Spark({ cx, cy, r, fill }: { cx: number; cy: number; r: number; fill: string }) {
-  const w = r * 0.42; // waist half-width of each petal
-  return (
-    <path
-      d={`M ${cx} ${cy - r}
-          C ${cx + w} ${cy - w}, ${cx + w} ${cy - w}, ${cx + r} ${cy}
-          C ${cx + w} ${cy + w}, ${cx + w} ${cy + w}, ${cx} ${cy + r}
-          C ${cx - w} ${cy + w}, ${cx - w} ${cy + w}, ${cx - r} ${cy}
-          C ${cx - w} ${cy - w}, ${cx - w} ${cy - w}, ${cx} ${cy - r} Z`}
-      fill={fill}
-    />
   );
 }
