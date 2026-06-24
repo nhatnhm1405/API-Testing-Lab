@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronLeft, ArrowRight, RotateCcw } from "lucide-react";
-import { PhoApiFlow } from "./PhoApiFlow";
+import { PhoWaiterGame } from "./PhoWaiterGame";
 import { ApiStoryFlow } from "./ApiStoryFlow";
 import { APISimulator } from "./APISimulator";
 
@@ -158,7 +158,7 @@ type Stage = 'intro' | 'play' | 'transition' | 'api' | 'welcome' | 'lab' | 'reca
 
 // Full-bleed cinematic line that fades in, holds, then fades out and calls onDone.
 function Cinematic({ emoji, title, subtitle, tone, onDone }: {
-  emoji: string; title: string; subtitle: string; tone: string; onDone: () => void;
+  emoji: string; title: string; subtitle?: string; tone: string; onDone: () => void;
 }) {
   useEffect(() => {
     const t = setTimeout(onDone, 3800);
@@ -182,10 +182,12 @@ function Cinematic({ emoji, title, subtitle, tone, onDone }: {
         style={{ fontFamily: 'var(--atl-font-display)', fontSize: 'clamp(28px, 5vw, 44px)', fontWeight: 800, color: '#1C1B2A', letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0, maxWidth: 640 }}>
         {title}
       </motion.h1>
-      <motion.p initial={{ y: 18, opacity: 0 }} animate={{ y: [18, 0, 0, -8], opacity: [0, 1, 1, 0] }} transition={{ ...fade, times: [0, .24, .78, 1] }}
-        style={{ fontFamily: 'var(--atl-font-body)', fontSize: 'clamp(15px, 2.4vw, 18px)', color: tone, fontWeight: 600, margin: '18px 0 0', maxWidth: 520, lineHeight: 1.5 }}>
-        {subtitle}
-      </motion.p>
+      {subtitle && (
+        <motion.p initial={{ y: 18, opacity: 0 }} animate={{ y: [18, 0, 0, -8], opacity: [0, 1, 1, 0] }} transition={{ ...fade, times: [0, .24, .78, 1] }}
+          style={{ fontFamily: 'var(--atl-font-body)', fontSize: 'clamp(15px, 2.4vw, 18px)', color: tone, fontWeight: 600, margin: '18px 0 0', maxWidth: 520, lineHeight: 1.5 }}>
+          {subtitle}
+        </motion.p>
+      )}
       <motion.span initial={{ opacity: 0 }} animate={{ opacity: [0, 0, .55] }} transition={{ duration: 3.8, times: [0, .82, 1] }}
         style={{ marginTop: 30, fontFamily: 'var(--atl-font-body)', fontSize: '12px', color: '#A7A3AD', fontWeight: 600 }}>
         tap to skip →
@@ -223,14 +225,13 @@ export function ConceptDiagrams({ onNavigate }: ConceptDiagramsProps) {
         <AnimatePresence mode="wait">
           {stage === 'intro' && (
             <Cinematic key="intro" emoji="🍜"
-              title="You walk into a phở restaurant…"
-              subtitle="Let's order a bowl and watch what really happens behind the scenes."
+              title="The Phở Protocol"
               tone="#C2410C" onDone={() => setStage('play')} />
           )}
 
           {stage === 'play' && (
             <motion.div key="play" initial={{ opacity:0,y:16 }} animate={{ opacity:1,y:0 }} exit={{ opacity:0,y:-12 }} transition={{ duration:.35 }}>
-              <PhoApiFlow onContinue={() => setStage('transition')} />
+              <PhoWaiterGame onContinue={() => setStage('transition')} />
             </motion.div>
           )}
 
@@ -263,7 +264,7 @@ export function ConceptDiagrams({ onNavigate }: ConceptDiagramsProps) {
                   style={{ display:'inline-flex',alignItems:'center',gap:8,background:'#FFF',border:'1.5px solid #ECE8E1',borderRadius:'100px',padding:'10px 18px',cursor:'pointer',fontFamily:'var(--atl-font-body)',fontSize:'13px',fontWeight:700,color:'#6B6A7B',boxShadow:'0 1px 4px rgba(28,27,42,.06)' }}>
                   📋 Request anatomy reference
                 </button>
-                <button onClick={() => setStage('intro')}
+                <button onClick={() => setStage('play')}
                   style={{ display:'inline-flex',alignItems:'center',gap:8,background:'#FFF',border:'1.5px solid #ECE8E1',borderRadius:'100px',padding:'10px 18px',cursor:'pointer',fontFamily:'var(--atl-font-body)',fontSize:'13px',fontWeight:700,color:'#6B6A7B',boxShadow:'0 1px 4px rgba(28,27,42,.06)' }}>
                   <RotateCcw size={14}/> Restart story
                 </button>

@@ -219,14 +219,20 @@ function FeaturedCard({ featured, dir, isMobile, completedLessons, onStart }: {
             padding: isMobile ? 22 : 28,
           }}>
         {/* eyebrow + title */}
-        <div style={{ textAlign: 'center', marginBottom: 18 }}>
+        <div style={{ textAlign: 'center', marginBottom: isPho ? 10 : 18 }}>
           <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11px', fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: accent }}>{eyebrow}</span>
-          <h3 style={{ fontFamily: 'var(--atl-font-display)', fontSize: isMobile ? '24px' : '28px', fontWeight: 800, color: isPho ? '#7C2D12' : 'var(--atl-ink)', margin: '4px 0 0', letterSpacing: '-0.025em', lineHeight: 1.1 }}>{title}</h3>
+          <h3 style={{ fontFamily: 'var(--atl-font-display)', fontSize: isPho ? (isMobile ? '32px' : '42px') : (isMobile ? '24px' : '28px'), fontWeight: 800, color: isPho ? '#7C2D12' : 'var(--atl-ink)', margin: '6px 0 0', letterSpacing: '-0.03em', lineHeight: 1.05, textShadow: isPho ? '0 2px 0 rgba(255,255,255,.4)' : undefined }}>{title}</h3>
         </div>
 
         {/* illustration */}
         {isPho
-          ? <FlowPreview />
+          ? (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, margin: '4px 0 18px' }}>
+              <motion.img src="/pho-bowl.png" alt="Bowl of phở"
+                animate={{ y: [0, -7, 0] }} transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut' }}
+                style={{ width: 188, height: 188, objectFit: 'contain', filter: 'drop-shadow(0 14px 22px rgba(124,45,18,.28))' }} />
+            </div>
+          )
           : (
             <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0 22px' }}>
               <div style={{ width: 116, height: 116, borderRadius: 28, background: `linear-gradient(140deg,${accent},${accent2})`, boxShadow: `inset 0 2px 0 rgba(255,255,255,.3), 0 16px 34px ${accent}45`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -235,23 +241,25 @@ function FeaturedCard({ featured, dir, isMobile, completedLessons, onStart }: {
             </div>
           )}
 
-        {/* sub-step rows */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 18 }}>
-          {steps.map((s, i) => {
-            const isCurrent = i === firstUndone;
-            return (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 4px' }}>
-                <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: s.done ? accent : isCurrent ? '#fff' : 'var(--atl-sunken)',
-                  border: isCurrent ? `2.5px solid ${accent}` : s.done ? 'none' : `2px solid ${isPho ? '#F8C99B' : 'var(--atl-hairline)'}`,
-                  boxShadow: isCurrent ? `0 0 0 4px ${accent}22` : 'none' }}>
-                  {s.done && <Check size={14} color="#fff" strokeWidth={3} />}
+        {/* sub-step rows (skipped for the minimal Phở intro card) */}
+        {!isPho && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 18 }}>
+            {steps.map((s, i) => {
+              const isCurrent = i === firstUndone;
+              return (
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 4px' }}>
+                  <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: s.done ? accent : isCurrent ? '#fff' : 'var(--atl-sunken)',
+                    border: isCurrent ? `2.5px solid ${accent}` : s.done ? 'none' : `2px solid var(--atl-hairline)`,
+                    boxShadow: isCurrent ? `0 0 0 4px ${accent}22` : 'none' }}>
+                    {s.done && <Check size={14} color="#fff" strokeWidth={3} />}
+                  </div>
+                  <span style={{ flex: 1, fontFamily: 'var(--atl-font-body)', fontSize: '15px', fontWeight: s.done || isCurrent ? 700 : 600, color: s.done ? 'var(--atl-ink-soft)' : isCurrent ? 'var(--atl-ink)' : 'var(--atl-ink-faint)' }}>{s.text}</span>
                 </div>
-                <span style={{ flex: 1, fontFamily: 'var(--atl-font-body)', fontSize: '15px', fontWeight: s.done || isCurrent ? 700 : 600, color: s.done ? (isPho ? '#9A5532' : 'var(--atl-ink-soft)') : isCurrent ? (isPho ? '#7C2D12' : 'var(--atl-ink)') : 'var(--atl-ink-faint)' }}>{s.text}</span>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* big CTA — pinned to the bottom so every card is the same height */}
         <div style={{ marginTop: 'auto' }}>

@@ -21,9 +21,14 @@ const getAnim = (s: MascotState) => {
   }
 };
 
+// ── Clawd — Claude's friendly mascot ───────────────────────────────
+// A rounded little critter in Anthropic's signature orange, with the
+// Claude "spark" hovering above. Same props/states as before so it
+// drops in everywhere the old pixel critter was used.
 export function Mascot({ state = 'idle', size = 'md', showBubble, bubbleText }: MascotProps) {
   const px = PX[size];
-  const id = `m${size}`;
+  const id = `clawd-${size}`;
+  const EYE = '#3A2218';
 
   return (
     <div style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -49,62 +54,112 @@ export function Mascot({ state = 'idle', size = 'md', showBubble, bubbleText }: 
         </motion.div>
       )}
       <motion.div animate={getAnim(state)} style={{ width: px, height: px }}>
-        <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" width={px} height={px}>
+        <svg viewBox="0 0 64 64" width={px} height={px} xmlns="http://www.w3.org/2000/svg">
           <defs>
-            <linearGradient id={`${id}b`} x1="0" y1="0" x2="80" y2="80" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#2BD46B"/><stop offset="1" stopColor="#8FE34A"/>
+            <linearGradient id={`${id}-body`} x1="32" y1="14" x2="32" y2="58" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#E8956B" />
+              <stop offset="0.55" stopColor="#D97757" />
+              <stop offset="1" stopColor="#C2613F" />
             </linearGradient>
-            <linearGradient id={`${id}s`} x1="0" y1="0" x2="80" y2="80" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#1FA855"/><stop offset="1" stopColor="#5CC830"/>
-            </linearGradient>
-            <radialGradient id={`${id}g`} cx="35%" cy="28%" r="48%">
-              <stop stopColor="rgba(255,255,255,0.55)"/><stop offset="1" stopColor="rgba(255,255,255,0)"/>
+            <radialGradient id={`${id}-cheek`} cx="0.5" cy="0.5" r="0.5">
+              <stop stopColor="#F6A883" stopOpacity="0.9" />
+              <stop offset="1" stopColor="#F6A883" stopOpacity="0" />
             </radialGradient>
-            <filter id={`${id}f`} x="-20%" y="-10%" width="140%" height="150%">
-              <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor="#1C1B2A" floodOpacity="0.16"/>
+            <filter id={`${id}-shadow`} x="-30%" y="-20%" width="160%" height="150%">
+              <feDropShadow dx="0" dy="2" stdDeviation="1.6" floodColor="#C2613F" floodOpacity="0.35" />
             </filter>
           </defs>
 
-          {/* Body */}
-          <rect x="8" y="5" width="64" height="58" rx="18" fill={`url(#${id}b)`} filter={`url(#${id}f)`}/>
-          {/* Gloss */}
-          <ellipse cx="32" cy="20" rx="16" ry="9" fill={`url(#${id}g)`} transform="rotate(-10 32 20)"/>
-          {/* Screen emblem */}
-          <rect x="24" y="22" width="32" height="26" rx="7" fill="#0D2010" opacity="0.25"/>
+          {/* ground shadow */}
+          <ellipse cx="32" cy="57" rx="16" ry="3.4" fill="#1C1B2A" opacity="0.12" />
 
-          {/* Eyes */}
-          <circle cx="30" cy="37" r="6" fill="white"/>
-          <circle cx="50" cy="37" r="6" fill="white"/>
-          {state === 'wrong' ? (
+          {/* the Claude spark, hovering above the head */}
+          <motion.g
+            style={{ transformOrigin: '46px 13px' }}
+            animate={state === 'thinking'
+              ? { rotate: [0, 360], scale: 1 }
+              : state === 'correct'
+                ? { rotate: 0, scale: [1, 1.5, 1] }
+                : { rotate: 0, scale: [1, 1.15, 1] }}
+            transition={state === 'thinking'
+              ? { duration: 4, repeat: Infinity, ease: 'linear' }
+              : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Spark cx={46} cy={13} r={5} fill="#D97757" />
+          </motion.g>
+
+          {/* feet */}
+          <rect x="22" y="50" width="8" height="7" rx="3.5" fill="#C2613F" />
+          <rect x="34" y="50" width="8" height="7" rx="3.5" fill="#C2613F" />
+
+          {/* arms */}
+          <ellipse cx="13.5" cy="38" rx="4" ry="6" fill="#CE6C4B" />
+          <ellipse cx="50.5" cy="38" rx="4" ry="6" fill="#CE6C4B" />
+
+          {/* body */}
+          <g filter={`url(#${id}-shadow)`}>
+            <path
+              d="M32 13
+                 C20 13 14 21 14 33
+                 C14 46 21 53 32 53
+                 C43 53 50 46 50 33
+                 C50 21 44 13 32 13 Z"
+              fill={`url(#${id}-body)`}
+            />
+          </g>
+          {/* soft top highlight */}
+          <ellipse cx="26" cy="23" rx="7" ry="4.5" fill="#FFFFFF" opacity="0.18" />
+
+          {/* cheeks */}
+          <ellipse cx="22" cy="38" rx="4.5" ry="3" fill={`url(#${id}-cheek)`} />
+          <ellipse cx="42" cy="38" rx="4.5" ry="3" fill={`url(#${id}-cheek)`} />
+
+          {/* face */}
+          {state === 'correct' ? (
+            <g stroke={EYE} strokeWidth={2.6} strokeLinecap="round" fill="none">
+              <path d="M21 31 Q25 26 29 31" />
+              <path d="M35 31 Q39 26 43 31" />
+              <path d="M27 39 Q32 44 37 39" />
+            </g>
+          ) : state === 'wrong' ? (
+            <g stroke={EYE} strokeWidth={2.6} strokeLinecap="round" fill="none">
+              <path d="M22 29 L28 35" /><path d="M28 29 L22 35" />
+              <path d="M36 29 L42 35" /><path d="M42 29 L36 35" />
+              <path d="M27 42 Q32 38 37 42" />
+            </g>
+          ) : state === 'thinking' ? (
             <>
-              <path d="M27 34 L33 40" stroke="#1C1B2A" strokeWidth="2.8" strokeLinecap="round"/>
-              <path d="M33 34 L27 40" stroke="#1C1B2A" strokeWidth="2.8" strokeLinecap="round"/>
-              <path d="M47 34 L53 40" stroke="#1C1B2A" strokeWidth="2.8" strokeLinecap="round"/>
-              <path d="M53 34 L47 40" stroke="#1C1B2A" strokeWidth="2.8" strokeLinecap="round"/>
+              <circle cx="25" cy="30" r="2.6" fill={EYE} />
+              <circle cx="39" cy="30" r="2.6" fill={EYE} />
+              <path d="M28 40 Q32 38 36 40" stroke={EYE} strokeWidth={2.2} strokeLinecap="round" fill="none" />
             </>
           ) : (
             <>
-              <circle cx="31" cy="38" r="3" fill="#1C1B2A"/>
-              <circle cx="51" cy="38" r="3" fill="#1C1B2A"/>
-              <circle cx="32.5" cy="36.5" r="1.2" fill="white"/>
-              <circle cx="52.5" cy="36.5" r="1.2" fill="white"/>
+              <circle cx="25" cy="31" r="3" fill={EYE} />
+              <circle cx="39" cy="31" r="3" fill={EYE} />
+              {/* eye sparkle */}
+              <circle cx="26.1" cy="30" r="0.9" fill="#FFFFFF" />
+              <circle cx="40.1" cy="30" r="0.9" fill="#FFFFFF" />
+              <path d="M28 39 Q32 42 36 39" stroke={EYE} strokeWidth={2.2} strokeLinecap="round" fill="none" />
             </>
           )}
-
-          {/* Mouth */}
-          {state === 'correct'
-            ? <path d="M27 51 Q40 62 53 51" stroke="#1C1B2A" strokeWidth="3" strokeLinecap="round" fill="none"/>
-            : state === 'wrong'
-            ? <path d="M31 55 Q40 49 49 55" stroke="#1C1B2A" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-            : <path d="M29 51 Q40 59 51 51" stroke="#1C1B2A" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-          }
-
-          {/* Legs */}
-          <rect x="17" y="61" width="20" height="10" rx="5" fill={`url(#${id}s)`}/>
-          <rect x="43" y="61" width="20" height="10" rx="5" fill={`url(#${id}s)`}/>
-          <rect x="13" y="69" width="54" height="5" rx="2.5" fill="#197840" opacity="0.45"/>
         </svg>
       </motion.div>
     </div>
+  );
+}
+
+// The Claude four-point spark / sunburst.
+function Spark({ cx, cy, r, fill }: { cx: number; cy: number; r: number; fill: string }) {
+  const w = r * 0.42; // waist half-width of each petal
+  return (
+    <path
+      d={`M ${cx} ${cy - r}
+          C ${cx + w} ${cy - w}, ${cx + w} ${cy - w}, ${cx + r} ${cy}
+          C ${cx + w} ${cy + w}, ${cx + w} ${cy + w}, ${cx} ${cy + r}
+          C ${cx - w} ${cy + w}, ${cx - w} ${cy + w}, ${cx - r} ${cy}
+          C ${cx - w} ${cy - w}, ${cx - w} ${cy - w}, ${cx} ${cy - r} Z`}
+      fill={fill}
+    />
   );
 }
