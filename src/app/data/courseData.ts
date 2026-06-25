@@ -48,7 +48,83 @@ export interface PostmanData {
   explanation: string;
 }
 
-export type LessonData = MCQData | FillBlankData | DragCategorizeData | DragOrderData | PostmanData;
+// A Brilliant-style interactive lesson, run as three beats:
+//   1. EXPERIENCE — the learner plays with a live mini-system (no right/wrong),
+//      triggering real request→response round-trips and watching it react.
+//   2. CONCEPT    — only now do we name what just happened (the definition).
+//   3. CHECK      — a hands-on consolidation (drag a request wire to the right
+//      source), which feels obvious because the learner already lived it.
+export interface InteractiveNode {
+  id: string;
+  label: string;
+  sub?: string;   // small caption under the label (e.g. a URL or hint)
+  emoji?: string; // visual anchor
+}
+
+// One thing the learner can try in the EXPERIENCE step. Tapping it fires a
+// round-trip: the request flies out, the response comes back, the device updates.
+export interface ExploreQuery {
+  id: string;
+  label: string;    // chip label, e.g. "Hà Nội"
+  request: string;  // what the device sends,   e.g. "GET /forecast?city=Hanoi"
+  response: string; // what comes back (JSON),   e.g. '{ "temp": 28 }'
+  display: string;  // what the device then shows, e.g. "28° ☀️"
+  tone?: 'good' | 'bad'; // colours the result (green success / red error); omit = neutral
+}
+
+// Alternative EXPERIENCE: the learner sets the EXPECTED result themselves, runs
+// the request, and sees PASS/FAIL from their own expectation vs the actual.
+export interface PredictExperience {
+  intro: string;
+  expectedOptions: string[]; // choices the learner can predict, e.g. ['200 OK', '404 Not Found']
+  rows: Array<{ id: string; request: string; actual: string }>;
+}
+
+export interface InteractiveData {
+  type: 'interactive';
+  // 1 ── EXPERIENCE
+  explore: {
+    prompt: string;
+    deviceEmoji: string;  deviceLabel: string;
+    serviceEmoji: string; serviceLabel: string; serviceSub?: string;
+    emptyDisplay: string;        // device display before any request (e.g. "—°")
+    queries?: ExploreQuery[];    // round-trip playground: things to try (≥1 to advance)
+    predict?: PredictExperience; // OR a predict-the-result lab (used instead of queries)
+    hint?: string;
+  };
+  // 2 ── CONCEPT (named only after the experience)
+  insight: {
+    title: string;
+    body: string;
+    terms?: Array<{ term: string; def: string }>;
+  };
+  // 3 ── CHECK (hands-on consolidation; explanation always shown afterwards)
+  check: InteractiveCheck;
+}
+
+interface InteractiveCheckBase {
+  prompt: string;
+  explanation: string; // always revealed after answering — right OR wrong
+}
+// Drag a request "wire" from the source to the correct destination.
+export interface InteractiveConnectCheck extends InteractiveCheckBase {
+  mode: 'connect';
+  source: InteractiveNode;
+  sourceEmptyLabel?: string;
+  sourceFilledLabel?: string;
+  targets: InteractiveNode[];
+  correctTargetId: string;
+  reveal: { request: string; response: string };
+}
+// Tap the correct statement — used when the concept is pure recall (e.g. an acronym).
+export interface InteractiveChoiceCheck extends InteractiveCheckBase {
+  mode: 'choice';
+  options: string[];
+  correctIndex: number;
+}
+export type InteractiveCheck = InteractiveConnectCheck | InteractiveChoiceCheck;
+
+export type LessonData = MCQData | FillBlankData | DragCategorizeData | DragOrderData | PostmanData | InteractiveData;
 
 export interface Lesson {
   id: string;
@@ -104,6 +180,7 @@ export function getLessonPrompt(data: LessonData): string {
     case 'drag-categorize': return data.instruction;
     case 'drag-order':      return data.instruction;
     case 'postman':         return data.task;
+    case 'interactive':     return data.explore.prompt;
   }
 }
 
@@ -122,56 +199,168 @@ export const MODULES: Module[] = [
       {
         id: 'l1-1', title: 'API Definition', xp: 10,
         data: {
-          type: 'mcq',
-          question: 'What does the acronym API stand for?',
-          options: [
-            'Application Programming Interface',
-            'Advanced Program Integration',
-            'Automated Process Interface',
-            'Applied Programming Index',
-          ],
-          correctIndex: 0,
-          explanation: 'API stands for Application Programming Interface — a set of rules and protocols that lets software applications talk to each other. Think of it like a restaurant menu: the API tells you what you can order and what you\'ll get.',
+          type: 'interactive',
+          explore: {
+            prompt: 'You\'re at a restaurant. You can\'t walk into the kitchen — but you have a menu. Tap a dish to order.',
+            deviceEmoji: '🧑', deviceLabel: 'You',
+            serviceEmoji: '👨‍🍳', serviceLabel: 'Kitchen', serviceSub: 'cooks to order',
+            emptyDisplay: 'hungry…',
+            queries: [
+              { id: 'pho',    label: '🍜 Phở',     request: 'ORDER pho',    response: '{ "dish": "Phở bò" }',    display: '🍜 Phở!' },
+              { id: 'coffee', label: '☕ Cà phê',   request: 'ORDER coffee', response: '{ "dish": "Cà phê sữa" }', display: '☕ Cà phê!' },
+              { id: 'banhmi', label: '🥖 Bánh mì',  request: 'ORDER banhmi', response: '{ "dish": "Bánh mì" }',   display: '🥖 Bánh mì!' },
+            ],
+            hint: 'The menu is the only way you talk to the kitchen.',
+          },
+          insight: {
+            title: 'That menu is an interface',
+            body: 'You never touched the kitchen — you asked through the menu, a fixed list of what you can order and what you\'ll get back. Software works the same way: one program talks to another through an Application Programming Interface.',
+            terms: [
+              { term: 'Application', def: 'the program doing the asking (the app — or you)' },
+              { term: 'Programming', def: 'it\'s an interface built for software to use' },
+              { term: 'Interface', def: 'the agreed menu: how you ask, and what comes back' },
+            ],
+          },
+          check: {
+            mode: 'choice',
+            prompt: 'So what does API stand for?',
+            options: [
+              'Application Programming Interface',
+              'Advanced Program Integration',
+              'Automated Process Interface',
+              'Applied Programming Index',
+            ],
+            correctIndex: 0,
+            explanation: 'API stands for Application Programming Interface — a set of rules that lets software talk to other software, just like a restaurant menu lets you order without ever entering the kitchen.',
+          },
         },
       },
       {
         id: 'l1-2', title: 'APIs in the Wild', xp: 10,
         data: {
-          type: 'mcq',
-          question: 'When a weather app on your phone shows a forecast, how does it get that data?',
-          options: [
-            'It collects weather data on its own',
-            'It calls a weather service API',
-            'It reads from the phone\'s memory',
-            'It prompts you to enter it manually',
-          ],
-          correctIndex: 1,
-          explanation: 'The weather app calls an API from a service like OpenWeather. The API returns JSON data, and the app displays it for you. No self-collection or local storage needed!',
+          type: 'interactive',
+          explore: {
+            prompt: 'Here\'s a brand-new weather app — it knows nothing yet. Tap a city and watch how it gets a forecast.',
+            deviceEmoji: '📱', deviceLabel: 'Weather App',
+            serviceEmoji: '☁️', serviceLabel: 'Weather Service', serviceSub: 'api.openweather.org',
+            emptyDisplay: '—°',
+            queries: [
+              { id: 'hanoi',  label: 'Hà Nội', request: 'GET /forecast?city=Hanoi',  response: '{ "temp": 28, "sky": "sunny" }', display: '28° ☀️', tone: 'good' },
+              { id: 'tokyo',  label: 'Tokyo',  request: 'GET /forecast?city=Tokyo',  response: '{ "temp": 19, "sky": "rain" }',  display: '19° 🌧️', tone: 'good' },
+              { id: 'london', label: 'London', request: 'GET /forecast?city=London', response: '{ "temp": 12, "sky": "cloud" }', display: '12° ☁️', tone: 'good' },
+            ],
+            hint: 'Try a few cities — the app asks the service every time.',
+          },
+          insight: {
+            title: 'You just made API calls',
+            body: 'The app had no weather of its own. Each time you picked a city, it sent a request to a weather service and got back data, then showed it. That round-trip — ask, then receive — is an API call.',
+            terms: [
+              { term: 'Client', def: 'the app doing the asking (your weather app)' },
+              { term: 'API', def: 'the service\'s menu of things you can request' },
+              { term: 'Request → Response', def: 'you ask, the service answers with data (JSON)' },
+            ],
+          },
+          check: {
+            mode: 'connect',
+            prompt: 'Your turn: where must the app go to get the forecast? Drag the request there.',
+            source: { id: 'app', label: 'Weather App', emoji: '📱' },
+            sourceEmptyLabel: '??°',
+            sourceFilledLabel: '28° ☀️',
+            targets: [
+              { id: 'self',    label: 'Collect it itself', sub: 'measure the sky?',     emoji: '🛰️' },
+              { id: 'weather', label: 'Weather Service',    sub: 'api.openweather.org', emoji: '☁️' },
+              { id: 'manual',  label: 'Ask you to type it', sub: 'manual entry',        emoji: '⌨️' },
+            ],
+            correctTargetId: 'weather',
+            reveal: { request: 'GET /forecast?city=Hanoi', response: '{ "temp": 28 }' },
+            explanation: 'The weather app calls an API from a service like OpenWeather. It sends a request, the API returns JSON data, and the app displays it — no self-collection or local storage. That\'s an API call in the wild!',
+          },
         },
       },
       {
         id: 'l1-3', title: 'HTTP Methods', xp: 15,
         data: {
-          type: 'mcq',
-          question: 'Which HTTP method is used to RETRIEVE data from a server?',
-          options: ['POST', 'PUT', 'DELETE', 'GET'],
-          correctIndex: 3,
-          explanation: 'GET retrieves (reads) data from the server. POST creates new data, PUT updates it, DELETE removes it. Together these form CRUD: Create, Read, Update, Delete.',
+          type: 'interactive',
+          explore: {
+            prompt: 'Here\'s a users API. Tap each method and watch what it does to the data.',
+            deviceEmoji: '💻', deviceLabel: 'API Client',
+            serviceEmoji: '🗄️', serviceLabel: 'Users API', serviceSub: '/users',
+            emptyDisplay: 'idle',
+            queries: [
+              { id: 'get',    label: 'GET',    request: 'GET /users/1',    response: '200 { "name": "Mai" }', display: '📄 Read' },
+              { id: 'post',   label: 'POST',   request: 'POST /users',     response: '201 Created',           display: '➕ Create' },
+              { id: 'put',    label: 'PUT',    request: 'PUT /users/1',    response: '200 Updated',           display: '✏️ Update' },
+              { id: 'delete', label: 'DELETE', request: 'DELETE /users/1', response: '204 No Content',        display: '🗑️ Delete' },
+            ],
+            hint: 'Four methods, four different actions.',
+          },
+          insight: {
+            title: 'Each method is a verb',
+            body: 'You just saw it: GET reads data, POST creates new data, PUT updates it, DELETE removes it. These four actions together are known as CRUD — Create, Read, Update, Delete.',
+            terms: [
+              { term: 'GET', def: 'read / retrieve existing data' },
+              { term: 'POST', def: 'create something new' },
+              { term: 'PUT', def: 'update / replace existing data' },
+              { term: 'DELETE', def: 'remove data' },
+            ],
+          },
+          check: {
+            mode: 'connect',
+            prompt: 'The app needs to READ a user. Drag the job to the method that does it.',
+            source: { id: 'app', label: 'Read a user', emoji: '📱' },
+            sourceEmptyLabel: '??',
+            sourceFilledLabel: '📄 Mai',
+            targets: [
+              { id: 'post',   label: 'POST',   sub: 'create', emoji: '➕' },
+              { id: 'get',    label: 'GET',    sub: 'read',   emoji: '📄' },
+              { id: 'put',    label: 'PUT',    sub: 'update', emoji: '✏️' },
+              { id: 'delete', label: 'DELETE', sub: 'remove', emoji: '🗑️' },
+            ],
+            correctTargetId: 'get',
+            reveal: { request: 'GET /users/1', response: '{ "name": "Mai" }' },
+            explanation: 'GET retrieves (reads) data from the server. POST creates new data, PUT updates it, DELETE removes it. Together these form CRUD: Create, Read, Update, Delete.',
+          },
         },
       },
       {
         id: 'l1-4', title: 'Status Codes', xp: 15,
         data: {
-          type: 'mcq',
-          question: 'A server returns status code 404. What does that mean?',
-          options: [
-            'Success! The request was processed.',
-            'Not Found — the resource doesn\'t exist.',
-            'Server Error — something went wrong on the server.',
-            'Unauthorized — you need to log in.',
-          ],
-          correctIndex: 1,
-          explanation: '404 Not Found means the server couldn\'t locate the resource. Families: 2xx = success, 3xx = redirect, 4xx = client error, 5xx = server error.',
+          type: 'interactive',
+          explore: {
+            prompt: 'Ask the server for different things. Some exist, some don\'t — watch the status code it sends back.',
+            deviceEmoji: '💻', deviceLabel: 'Client',
+            serviceEmoji: '🗄️', serviceLabel: 'Server',
+            emptyDisplay: 'no request yet',
+            queries: [
+              { id: 'u1',    label: 'User #1 (exists)',    request: 'GET /users/1',   response: '200 { "name": "Mai" }', display: '200 ✅', tone: 'good' },
+              { id: 'u999',  label: 'User #999 (missing)', request: 'GET /users/999', response: '404 Not Found',         display: '404 ❓', tone: 'bad' },
+              { id: 'about', label: 'Page /about',         request: 'GET /about',     response: '200 OK',                display: '200 ✅', tone: 'good' },
+              { id: 'typo',  label: 'Page /abuot (typo)',  request: 'GET /abuot',     response: '404 Not Found',         display: '404 ❓', tone: 'bad' },
+            ],
+            hint: 'Things that exist → 200. Things that don\'t → 404.',
+          },
+          insight: {
+            title: 'The server always answers with a code',
+            body: 'Every response carries a status code telling you how it went. 404 Not Found means the server looked but the resource isn\'t there. Codes come in families by their first digit.',
+            terms: [
+              { term: '2xx', def: 'success — it worked' },
+              { term: '3xx', def: 'redirect — look elsewhere' },
+              { term: '4xx', def: 'client error — your request was wrong (e.g. 404)' },
+              { term: '5xx', def: 'server error — the server failed' },
+            ],
+          },
+          check: {
+            mode: 'choice',
+            prompt: 'A server returns status code 404. What does that mean?',
+            options: [
+              'Success! The request was processed.',
+              'Not Found — the resource doesn\'t exist.',
+              'Server Error — something went wrong on the server.',
+              'Unauthorized — you need to log in.',
+            ],
+            correctIndex: 1,
+            explanation: '404 Not Found means the server couldn\'t locate the resource. Families: 2xx = success, 3xx = redirect, 4xx = client error, 5xx = server error.',
+          },
         },
       },
     ],
@@ -189,26 +378,75 @@ export const MODULES: Module[] = [
       {
         id: 'l2-1', title: 'GET, POST, PUT, DELETE', xp: 10,
         data: {
-          type: 'mcq',
-          question: 'Which HTTP method retrieves data without changing anything on the server?',
-          options: ['GET', 'POST', 'PUT', 'DELETE'],
-          correctIndex: 0,
-          explanation: 'GET is read-only — it fetches data with no side effects. POST creates, PUT replaces an existing resource entirely, DELETE removes it.',
+          type: 'interactive',
+          explore: {
+            prompt: 'Some methods only look; others change the data. Tap each and notice which one leaves the server untouched.',
+            deviceEmoji: '💻', deviceLabel: 'Client',
+            serviceEmoji: '🗄️', serviceLabel: 'Server', serviceSub: 'users: 1',
+            emptyDisplay: 'idle',
+            queries: [
+              { id: 'get',    label: 'GET',    request: 'GET /users',      response: '200 OK · read-only',   display: '🔒 safe', tone: 'good' },
+              { id: 'post',   label: 'POST',   request: 'POST /users',     response: '201 · 1 row added',    display: '✏️ changed' },
+              { id: 'put',    label: 'PUT',    request: 'PUT /users/1',    response: '200 · 1 row replaced', display: '✏️ changed' },
+              { id: 'delete', label: 'DELETE', request: 'DELETE /users/1', response: '204 · 1 row removed',  display: '✏️ changed' },
+            ],
+            hint: 'Only one of them leaves the data exactly as it was.',
+          },
+          insight: {
+            title: 'GET is "safe"',
+            body: 'GET only reads — it never changes the server, so you can repeat it as often as you like. POST, PUT and DELETE all modify data. That read-only nature is what makes GET safe to retry or refresh.',
+            terms: [
+              { term: 'Safe (read-only)', def: 'GET — fetches data, no side effects' },
+              { term: 'Changes data', def: 'POST creates, PUT replaces, DELETE removes' },
+            ],
+          },
+          check: {
+            mode: 'choice',
+            prompt: 'Which HTTP method retrieves data without changing anything on the server?',
+            options: ['GET', 'POST', 'PUT', 'DELETE'],
+            correctIndex: 0,
+            explanation: 'GET is read-only — it fetches data with no side effects. POST creates, PUT replaces an existing resource entirely, DELETE removes it.',
+          },
         },
       },
       {
         id: 'l2-2', title: 'Status Code Families', xp: 10,
         data: {
-          type: 'mcq',
-          question: 'The server hits an unexpected bug while handling your request. Which status code family does it return?',
-          options: [
-            '5xx — server error',
-            '2xx — success',
-            '3xx — redirection',
-            '4xx — client error',
-          ],
-          correctIndex: 0,
-          explanation: '5xx codes signal server-side errors — problems the server encountered that are not the client\'s fault. 4xx means YOU did something wrong; 2xx means everything went fine.',
+          type: 'interactive',
+          explore: {
+            prompt: 'Trigger different outcomes on the server and watch which status family comes back.',
+            deviceEmoji: '💻', deviceLabel: 'Client',
+            serviceEmoji: '🗄️', serviceLabel: 'Server',
+            emptyDisplay: 'no request yet',
+            queries: [
+              { id: 'ok',      label: 'Normal request',       request: 'GET /products', response: '200 OK',                    display: '2xx ✅', tone: 'good' },
+              { id: 'missing', label: 'Ask for missing page', request: 'GET /nope',     response: '404 Not Found',             display: '4xx ⚠️', tone: 'bad' },
+              { id: 'auth',    label: 'No login',             request: 'GET /admin',    response: '401 Unauthorized',          display: '4xx ⚠️', tone: 'bad' },
+              { id: 'crash',   label: 'Trigger a server bug', request: 'GET /crash',    response: '500 Internal Server Error', display: '5xx 💥', tone: 'bad' },
+            ],
+            hint: 'Watch the first digit — it tells you whose fault it is.',
+          },
+          insight: {
+            title: 'Status codes group into families',
+            body: 'The first digit tells the story: 2xx the request succeeded, 3xx go look elsewhere, 4xx you did something wrong, 5xx the server itself failed. So a bug that crashes the server returns a 5xx.',
+            terms: [
+              { term: '2xx', def: 'success' },
+              { term: '4xx', def: 'client error — your fault' },
+              { term: '5xx', def: 'server error — the server\'s fault' },
+            ],
+          },
+          check: {
+            mode: 'choice',
+            prompt: 'The server hits an unexpected bug while handling your request. Which status code family does it return?',
+            options: [
+              '5xx — server error',
+              '2xx — success',
+              '3xx — redirection',
+              '4xx — client error',
+            ],
+            correctIndex: 0,
+            explanation: '5xx codes signal server-side errors — problems the server encountered that are not the client\'s fault. 4xx means YOU did something wrong; 2xx means everything went fine.',
+          },
         },
       },
       {
@@ -346,16 +584,44 @@ export const MODULES: Module[] = [
       {
         id: 'l4-1', title: 'What is a Test Case?', xp: 10,
         data: {
-          type: 'mcq',
-          question: 'In essence, what is a test case?',
-          options: [
-            'A defined input plus the expected result, used to verify behavior.',
-            'A piece of code that sends HTTP requests automatically.',
-            'A list of all the API endpoints in a project.',
-            'A script that generates random test data.',
-          ],
-          correctIndex: 0,
-          explanation: 'A test case defines what you send (input), what you expect back (expected result), then compares against what actually happened. If expected === actual, the test passes.',
+          type: 'interactive',
+          explore: {
+            prompt: 'You write the test. For each request, pick what you EXPECT — then run it and see if it passes.',
+            deviceEmoji: '🧪', deviceLabel: 'Test Runner',
+            serviceEmoji: '🛰️', serviceLabel: 'API',
+            emptyDisplay: 'no tests run',
+            predict: {
+              intro: 'A test passes only when your expected result matches what actually comes back.',
+              expectedOptions: ['200 OK', '404 Not Found'],
+              rows: [
+                { id: 'r1', request: 'GET /users/1',   actual: '200 OK' },
+                { id: 'r2', request: 'GET /users/999', actual: '404 Not Found' },
+                { id: 'r3', request: 'GET /products',  actual: '200 OK' },
+              ],
+            },
+            hint: 'Try guessing wrong on purpose — watch it FAIL.',
+          },
+          insight: {
+            title: 'A test case = input + expected, vs actual',
+            body: 'Each test you ran had an input (the request), an expected result (what you predicted), and an actual result (what the API really returned). If expected matches actual it PASSES; if not, you\'ve found a bug.',
+            terms: [
+              { term: 'Input', def: 'what you send (the request)' },
+              { term: 'Expected', def: 'what you predict you\'ll get back' },
+              { term: 'Actual', def: 'what really came back — compared to expected' },
+            ],
+          },
+          check: {
+            mode: 'choice',
+            prompt: 'In essence, what is a test case?',
+            options: [
+              'A defined input plus the expected result, used to verify behavior.',
+              'A piece of code that sends HTTP requests automatically.',
+              'A list of all the API endpoints in a project.',
+              'A script that generates random test data.',
+            ],
+            correctIndex: 0,
+            explanation: 'A test case defines what you send (input), what you expect back (expected result), then compares against what actually happened. If expected === actual, the test passes.',
+          },
         },
       },
       {
