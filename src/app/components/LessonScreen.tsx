@@ -1,7 +1,6 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { TactileButton } from "./TactileButton";
-import { OptionCard, OptionState } from "./OptionCard";
 import { ProgressBar } from "./ProgressBar";
 import { FocusFrame } from "./FocusFrame";
 import { Mascot } from "./Mascot";
@@ -10,8 +9,9 @@ import { FillBlankExercise } from "./FillBlank";
 import { DragDropCategorizeExercise } from "./DragDropCategorize";
 import { DragDropOrderExercise } from "./DragDropOrder";
 import { MiniPostman } from "./MiniPostman";
+import { InteractiveExperience } from "./InteractiveExperience";
 import { MODULES } from "../data/courseData";
-import type { MCQData, FillBlankData, DragCategorizeData, DragOrderData, PostmanData } from "../data/courseData";
+import type { FillBlankData, DragCategorizeData, DragOrderData, PostmanData, InteractiveData } from "../data/courseData";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
 type Phase = 'answering' | 'correct' | 'wrong';
@@ -33,13 +33,12 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
   const [isReady,       setIsReady]       = useState(false);
   const [checkTrigger,  setCheckTrigger]  = useState(0);
   const [showWhy,       setShowWhy]       = useState(false);
-  // MCQ specific
-  const [selected,      setSelected]      = useState<number | null>(null);
 
   const isCorrect = phase === 'correct';
   const isWrong   = phase === 'wrong';
   const type      = lesson.data.type;
   const isPostman = type === 'postman';
+  const isInteractive = type === 'interactive';
 
   const handleExerciseResult = (correct: boolean) => {
     if (!correct) onMistake(lesson.id);
@@ -48,15 +47,7 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
 
   const handleCheck = () => {
     if (isPostman) return;
-    if (type === 'mcq') {
-      if (selected === null) return;
-      const mcq = lesson.data as MCQData;
-      const correct = selected === mcq.correctIndex;
-      if (!correct) onMistake(lesson.id);
-      setPhase(correct ? 'correct' : 'wrong');
-    } else {
-      setCheckTrigger(t => t + 1);
-    }
+    setCheckTrigger(t => t + 1);
   };
 
   const handleContinue = () => {
@@ -67,22 +58,11 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
     setPhase('answering');
     setIsReady(false);
     setCheckTrigger(0);
-    setSelected(null);
-  };
-
-  const getOptionState = (i: number): OptionState => {
-    const mcq = lesson.data as MCQData;
-    if (phase === 'answering') return selected === i ? 'selected' : 'default';
-    if (i === mcq.correctIndex) return 'correct';
-    if (selected === i && isWrong) return 'wrong';
-    return 'default';
   };
 
   const frameState = isCorrect ? 'correct' : isWrong ? 'wrong' : 'default';
 
-  const checkReady = isPostman ? false :
-    type === 'mcq' ? selected !== null :
-    isReady;
+  const checkReady = isPostman ? false : isReady;
 
   const explanation = (lesson.data as { explanation: string }).explanation ?? '';
 
@@ -109,12 +89,20 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
                 </span>
               </div>
 
-              {/* Postman: no FocusFrame wrapper (it has its own chrome) */}
+              {/* Postman & Interactive own their full chrome — no FocusFrame */}
               {isPostman ? (
                 <MiniPostman
                   data={lesson.data as PostmanData}
                   onResult={handleExerciseResult}
                   phase={phase}
+                />
+              ) : isInteractive ? (
+                <InteractiveExperience
+                  data={lesson.data as InteractiveData}
+                  xp={lesson.xp}
+                  accent={mod.accent}
+                  onMistake={() => onMistake(lesson.id)}
+                  onComplete={(correct) => onLessonComplete(lesson.id, correct ? lesson.xp : 0)}
                 />
               ) : (
                 <FocusFrame state={frameState}>
@@ -126,23 +114,6 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
                       {lesson.xp} XP
                     </span>
                   </div>
-
-                  {type === 'mcq' && (
-                    <>
-                      <h2 style={{ fontFamily:'var(--atl-font-display)',fontSize:'22px',fontWeight:800,color:'#1C1B2A',margin:'0 0 24px',lineHeight:1.3,letterSpacing:'-0.02em' }}>
-                        {(lesson.data as MCQData).question}
-                      </h2>
-                      <div style={{ display:'flex',flexDirection:'column',gap:10 }}>
-                        {(lesson.data as MCQData).options.map((opt, i) => (
-                          <OptionCard key={i} index={i} state={getOptionState(i)}
-                            onClick={() => phase==='answering' && setSelected(i)}
-                            disabled={phase!=='answering'}>
-                            {opt}
-                          </OptionCard>
-                        ))}
-                      </div>
-                    </>
-                  )}
 
                   {type === 'fill-blank' && (
                     <FillBlankExercise
@@ -179,14 +150,15 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
                       phase={phase}
                     />
                   )}
+
                 </FocusFrame>
               )}
             </motion.div>
           </AnimatePresence>
         </div>
 
-        {/* Bottom CTA (not for postman) */}
-        {!isPostman && (
+        {/* Bottom CTA (postman & interactive render their own) */}
+        {!isPostman && !isInteractive && (
           <AnimatePresence>
             {phase !== 'answering' ? (
               <motion.div key="feedback"
