@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { GripVertical, CheckCircle2, XCircle } from "lucide-react";
 import { useIsMobile } from "./ui/use-mobile";
+import { playSound } from "../lib/sound";
 
 interface Card { id: string; text: string; correctBucket: string }
 
@@ -54,6 +55,7 @@ export function DragDropCategorizeExercise({
   }, [checkTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const assign = (cardId: string, bucket: string) => {
+    playSound('pop');
     setAssignments(prev => ({ ...prev, [cardId]: bucket }));
     setSelected(null);
   };

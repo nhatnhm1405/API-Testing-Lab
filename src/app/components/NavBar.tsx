@@ -1,6 +1,7 @@
-import { Zap, Menu, Code2 } from "lucide-react";
+import { Zap, Menu, Code2, Volume2, VolumeX } from "lucide-react";
 import { GitHubLink } from "./GitHubLink";
 import { useIsMobile } from "./ui/use-mobile";
+import { useSoundMuted, playSound } from "../lib/sound";
 
 interface NavBarProps {
   streak?: number;
@@ -11,6 +12,13 @@ interface NavBarProps {
 
 export function NavBar({ streak = 15, xp = 340, onMenu, onLogoClick }: NavBarProps) {
   const isMobile = useIsMobile();
+  const [muted, toggleMuted] = useSoundMuted();
+
+  const onToggleSound = () => {
+    toggleMuted();
+    if (muted) playSound('ding'); // was muted → now on: confirm with a chime
+  };
+
   return (
     <nav style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -55,6 +63,22 @@ export function NavBar({ streak = 15, xp = 340, onMenu, onLogoClick }: NavBarPro
           <Zap size={14} fill="#B9E534" color="#B9E534" strokeWidth={0}/>
           <span style={{ fontSize: '13px', fontWeight: 700, color: '#5A700A', fontFamily: 'var(--atl-font-body)' }}>{streak}</span>
         </div>
+
+        <button
+          onClick={onToggleSound}
+          aria-label={muted ? 'Unmute sound effects' : 'Mute sound effects'}
+          title={muted ? 'Unmute sounds' : 'Mute sounds'}
+          style={{
+            width: 36, height: 36, border: 'none', background: 'transparent',
+            cursor: 'pointer', borderRadius: '8px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: muted ? '#C4BDB0' : '#6B6A7B', transition: 'background .15s, color .15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#F2EFEA')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          {muted ? <VolumeX size={19} strokeWidth={2}/> : <Volume2 size={19} strokeWidth={2}/>}
+        </button>
 
         <GitHubLink variant="icon" />
 

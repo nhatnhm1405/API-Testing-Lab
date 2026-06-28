@@ -11,6 +11,7 @@ import { DragDropOrderExercise } from "./DragDropOrder";
 import { MiniPostman } from "./MiniPostman";
 import { InteractiveExperience } from "./InteractiveExperience";
 import { MODULES, getCorrectAnswer, getHint } from "../data/courseData";
+import { playSound } from "../lib/sound";
 import type { FillBlankData, DragCategorizeData, DragOrderData, PostmanData, InteractiveData } from "../data/courseData";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
@@ -54,6 +55,7 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
       onMistake(lesson.id);
       setWrongCount(c => c + 1);
     }
+    playSound(correct ? 'correct' : 'wrong');
     setPhase(correct ? 'correct' : 'wrong');
   };
 
@@ -233,7 +235,7 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
                     <div style={{ display:'flex',flexDirection:'column',gap:8,flexShrink:0 }}>
                       <TactileButton variant="check" onClick={handleTryAgain} size="md">Try again</TactileButton>
                       {canReveal && (
-                        <button onClick={() => setRevealed(true)}
+                        <button onClick={() => { playSound('reveal'); setRevealed(true); }}
                           style={{ background:'none',border:'none',cursor:'pointer',fontFamily:'var(--atl-font-body)',fontSize:'12px',fontWeight:700,color:'#E11D48',textDecoration:'underline',padding:0,whiteSpace:'nowrap' }}>
                           Reveal answer
                         </button>

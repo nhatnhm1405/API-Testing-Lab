@@ -4,6 +4,7 @@ import confetti from "canvas-confetti";
 import { TactileButton } from "./TactileButton";
 import { Zap, Star, Home, ArrowRight, Map, RotateCcw, AlertCircle, Lightbulb } from "lucide-react";
 import { findLesson, getLessonPrompt } from "../data/courseData";
+import { playSound } from "../lib/sound";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
 
@@ -52,6 +53,7 @@ export function ResultScreen({ onNavigate, moduleNumber, moduleTitle, isLastModu
     if (fired.current) return;
     fired.current = true;
 
+    playSound('complete');
     const t1 = setTimeout(() => confetti({ particleCount:140, spread:72, origin:{ y:.35 }, colors:['#2BD46B','#8FE34A','#2E5BFF','#5B7BFF','#B9E534','#E0A815','#F59E0B'], scalar:1.1 }), 300);
     const t2 = setTimeout(() => {
       confetti({ particleCount:60, spread:120, origin:{ y:.5,x:.1 }, colors:['#2BD46B','#B9E534'], angle:60 });

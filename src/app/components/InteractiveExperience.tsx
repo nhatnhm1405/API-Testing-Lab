@@ -6,6 +6,7 @@ import { Mascot } from "./Mascot";
 import { OptionCard, OptionState } from "./OptionCard";
 import { ConnectExercise } from "./InteractiveDiagram";
 import { useIsMobile } from "./ui/use-mobile";
+import { playSound } from "../lib/sound";
 import type { InteractiveData, ExploreQuery, PredictExperience } from "../data/courseData";
 
 interface Props {
@@ -46,6 +47,7 @@ export function InteractiveExperience({ data, xp, accent, onMistake, onComplete 
 
   const handleCheckResult = (correct: boolean) => {
     if (!correct) { onMistake(); setWrongCount(c => c + 1); }
+    playSound(correct ? 'correct' : 'wrong');
     setPhase(correct ? 'correct' : 'wrong');
   };
 
@@ -192,7 +194,7 @@ export function InteractiveExperience({ data, xp, accent, onMistake, onComplete 
                 <div style={{ display:'flex', flexDirection:'column', gap:8, flexShrink:0 }}>
                   <TactileButton variant="check" onClick={tryAgain} size="md">Try again</TactileButton>
                   {canReveal && (
-                    <button onClick={() => setRevealed(true)}
+                    <button onClick={() => { playSound('reveal'); setRevealed(true); }}
                       style={{ background:'none', border:'none', cursor:'pointer', fontFamily:'var(--atl-font-body)', fontSize:'12px', fontWeight:700, color:'#E11D48', textDecoration:'underline', padding:0, whiteSpace:'nowrap' }}>
                       Reveal answer
                     </button>
@@ -261,9 +263,10 @@ function ExploreScene({ ex, accent, onTried }: { ex: InteractiveData['explore'];
   const run = (q: ExploreQuery) => {
     if (busy) return;
     setActive(q); setPicked(q.id); setTravel('out');
+    playSound('whoosh');
     window.setTimeout(() => setTravel('flash'), 650);
     window.setTimeout(() => setTravel('in'),    880);
-    window.setTimeout(() => { setTravel('done'); setDisplay(q.display); setDisplayTone(q.tone ?? 'neutral'); onTried(q.id); }, 1550);
+    window.setTimeout(() => { setTravel('done'); setDisplay(q.display); setDisplayTone(q.tone ?? 'neutral'); onTried(q.id); playSound(q.tone === 'bad' ? 'wrong' : 'ding'); }, 1550);
   };
 
   return (
@@ -426,10 +429,13 @@ function PredictScene({ predict, ex, accent, onTried }: {
 
   const choose = (rowId: string, opt: string) => {
     if (ran.has(rowId)) return;
+    playSound('select');
     setExpected(prev => ({ ...prev, [rowId]: opt }));
   };
   const runRow = (rowId: string) => {
     if (!expected[rowId] || ran.has(rowId)) return;
+    const row = predict.rows.find(r => r.id === rowId);
+    playSound(row && expected[rowId] === row.actual ? 'correct' : 'wrong');
     setRan(prev => new Set(prev).add(rowId));
     onTried(rowId);
   };
@@ -550,7 +556,7 @@ function ChoiceCheck({ prompt, options, correctIndex, checkTrigger, onReadyChang
       <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
         {options.map((opt, i) => (
           <OptionCard key={i} index={i} state={optState(i)}
-            onClick={() => isAnswering && setSelected(i)}
+            onClick={() => { if (isAnswering) { playSound('select'); setSelected(i); } }}
             disabled={!isAnswering}>
             {opt}
           </OptionCard>

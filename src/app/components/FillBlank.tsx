@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
+import { playSound } from "../lib/sound";
 
 interface FillBlankProps {
   template: string;
@@ -42,6 +43,7 @@ export function FillBlankExercise({
   const fillNext = (word: string) => {
     const idx = filled.indexOf(null);
     if (idx === -1) return;
+    playSound('select');
     setFilled(prev => { const n = [...prev]; n[idx] = word; return n; });
     setBank(prev => prev.filter(w => w !== word));
   };

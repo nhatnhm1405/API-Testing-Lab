@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Check, X } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useIsMobile } from "./ui/use-mobile";
+import { playSound } from "../lib/sound";
 import type { InteractiveNode } from "../data/courseData";
 
 interface ConnectExerciseProps {
@@ -127,7 +128,7 @@ export function ConnectExercise({
       setHover(h);
     };
     const up = () => {
-      if (hoverRef.current) setConnected(hoverRef.current);
+      if (hoverRef.current) { setConnected(hoverRef.current); playSound('pop'); }
       setDragging(false); setPointer(null); setHover(null); hoverRef.current = null;
     };
     window.addEventListener('pointermove', move);
@@ -143,7 +144,7 @@ export function ConnectExercise({
     setDragging(true);
   };
 
-  const tapTarget = (id: string) => { if (isAnswering) setConnected(id); };
+  const tapTarget = (id: string) => { if (isAnswering) { setConnected(id); playSound('pop'); } };
 
   // ── Wire endpoints ────────────────────────────────────────────────
   const src = centerOf(handleRef.current);

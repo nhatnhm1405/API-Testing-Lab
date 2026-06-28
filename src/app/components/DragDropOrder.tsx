@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, Reorder } from "motion/react";
+import { playSound } from "../lib/sound";
 import { GripVertical } from "lucide-react";
 
 interface OrderItem { id: string; text: string; badge?: string }
@@ -46,7 +47,7 @@ export function DragDropOrderExercise({
       <Reorder.Group
         axis="y"
         values={order}
-        onReorder={setOrder}
+        onReorder={next => { playSound('select'); setOrder(next); }}
         style={{ listStyle:'none',padding:0,margin:0,display:'flex',flexDirection:'column',gap:8 }}
       >
         {order.map((item, i) => (
