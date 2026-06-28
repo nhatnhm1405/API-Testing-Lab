@@ -68,6 +68,18 @@ export default function App() {
     setMistakes(prev => prev.has(lessonId) ? prev : new Set([...prev, lessonId]));
   };
 
+  // Advance from a module's skill-check into the first lesson of the NEXT module.
+  // Without this the skill-check just reopened `lessonTarget`, which still pointed
+  // at the last lesson of the module the learner just finished — hence the loop.
+  const goToNextModule = () => {
+    const nextIdx = resultModuleIdx + 1;
+    if (nextIdx < MODULES.length) {
+      openLesson(nextIdx, 0);
+    } else {
+      setView('path');
+    }
+  };
+
   // Wipe a module's progress (and its noted mistakes) and replay it from lesson 1.
   const restartModule = (moduleIdx: number) => {
     const ids = MODULES[moduleIdx].lessons.map(l => l.id);
@@ -140,6 +152,7 @@ export default function App() {
             <Screen key="skill-check">
               <SkillCheckScreen
                 onNavigate={navigate}
+                onNextModule={goToNextModule}
                 moduleNumber={resultModuleIdx + 1}
                 moduleTitle={resultMod.title}
                 accent={resultMod.accent}

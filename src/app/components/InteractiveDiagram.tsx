@@ -17,6 +17,9 @@ interface ConnectExerciseProps {
   onReadyChange: (ready: boolean) => void;
   onResult: (correct: boolean) => void;
   phase: 'answering' | 'correct' | 'wrong';
+  // When wrong, the correct target is hidden until the learner reveals it, so a
+  // retry is meaningful. Correct answers always reveal.
+  revealed?: boolean;
 }
 
 type RevealPhase = 'idle' | 'request' | 'response' | 'done';
@@ -31,9 +34,12 @@ interface Pt { x: number; y: number }
 export function ConnectExercise({
   prompt, source, sourceEmptyLabel, sourceFilledLabel,
   targets, correctTargetId, reveal,
-  checkTrigger, onReadyChange, onResult, phase,
+  checkTrigger, onReadyChange, onResult, phase, revealed = false,
 }: ConnectExerciseProps) {
   const isMobile = useIsMobile();
+
+  // Show the correct answer once the learner gets it right OR asks to reveal it.
+  const showAnswer = phase === 'correct' || revealed;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const handleRef    = useRef<HTMLDivElement>(null);
@@ -58,6 +64,18 @@ export function ConnectExercise({
     const cr = c.getBoundingClientRect();
     const r  = el.getBoundingClientRect();
     return { x: r.left + r.width / 2 - cr.left, y: r.top + r.height / 2 - cr.top };
+  };
+
+  // The point on the target's NEAR edge (left on desktop, top on mobile) facing
+  // the source. Ending the wire here keeps the line + dot off the answer text.
+  const edgeOf = (el: HTMLElement | null): Pt | null => {
+    const c = containerRef.current;
+    if (!el || !c) return null;
+    const cr = c.getBoundingClientRect();
+    const r  = el.getBoundingClientRect();
+    return isMobile
+      ? { x: r.left + r.width / 2 - cr.left, y: r.top - cr.top }
+      : { x: r.left - cr.left, y: r.top + r.height / 2 - cr.top };
   };
 
   // ── Re-measure on resize ──────────────────────────────────────────
@@ -131,7 +149,7 @@ export function ConnectExercise({
   const src = centerOf(handleRef.current);
   let end: Pt | null = null;
   if (dragging && pointer) end = pointer;
-  else if (connected)      end = centerOf(targetRefs.current[connected]);
+  else if (connected)      end = edgeOf(targetRefs.current[connected]);
 
   const tgt = connected ? centerOf(targetRefs.current[connected]) : null;
 
@@ -145,9 +163,11 @@ export function ConnectExercise({
       if (hover === id)     return 'hover';
       return 'default';
     }
-    if (id === correctTargetId) return 'correct';
-    if (connected === id)       return 'wrong';
-    return 'dim';
+    // Their wrong pick is always flagged red. The correct one only lights up
+    // once revealed (or when they were right) — otherwise a retry would be moot.
+    if (connected === id && id !== correctTargetId) return 'wrong';
+    if (id === correctTargetId) return showAnswer ? 'correct' : 'default';
+    return showAnswer ? 'dim' : 'default';
   };
 
   const sourceValue = reveal_ === 'done' && isCorrect
@@ -170,7 +190,7 @@ export function ConnectExercise({
           display:'flex',
           flexDirection: isMobile ? 'column' : 'row',
           alignItems: isMobile ? 'stretch' : 'center',
-          gap: isMobile ? 28 : 20,
+          gap: isMobile ? 36 : 64,
           padding: '8px 4px',
         }}
       >

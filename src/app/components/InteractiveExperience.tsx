@@ -32,16 +32,30 @@ export function InteractiveExperience({ data, xp, accent, onMistake, onComplete 
   const [ready,        setReady]        = useState(false);
   const [checkTrigger, setCheckTrigger] = useState(0);
   const [phase,        setPhase]        = useState<Phase>('answering');
+  // Wrong answers don't advance — the learner retries. `attempt` remounts the
+  // check so it resets; `revealed` shows the answer + explanation once earned.
+  const [wrongCount,   setWrongCount]   = useState(0);
+  const [attempt,      setAttempt]      = useState(0);
+  const [revealed,     setRevealed]     = useState(false);
 
   const isCorrect = phase === 'correct';
+  const isWrong   = phase === 'wrong';
+  const canReveal = wrongCount >= 2;
+  // The explanation (and the answer) appear only once earned.
+  const showOutcome = isCorrect || revealed;
 
   const handleCheckResult = (correct: boolean) => {
-    if (!correct) onMistake();
+    if (!correct) { onMistake(); setWrongCount(c => c + 1); }
     setPhase(correct ? 'correct' : 'wrong');
   };
 
   const goCheck    = () => setCheckTrigger(t => t + 1);
+  const tryAgain   = () => { setPhase('answering'); setReady(false); setCheckTrigger(0); setAttempt(a => a + 1); };
   const finish     = () => onComplete(isCorrect);
+
+  const checkHint  = data.check.mode === 'connect'
+    ? 'Trace the wire — match the job to the method that performs it.'
+    : 'Re-read the statements and pick the one that matches the concept.';
 
   return (
     <>
@@ -97,6 +111,7 @@ export function InteractiveExperience({ data, xp, accent, onMistake, onComplete 
             <motion.div key="check" initial={{ opacity:0, x:16 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-16 }} transition={{ duration:.22 }}>
               {data.check.mode === 'connect' ? (
                 <ConnectExercise
+                  key={attempt}
                   prompt={data.check.prompt}
                   source={data.check.source}
                   sourceEmptyLabel={data.check.sourceEmptyLabel}
@@ -108,9 +123,11 @@ export function InteractiveExperience({ data, xp, accent, onMistake, onComplete 
                   onReadyChange={setReady}
                   onResult={handleCheckResult}
                   phase={phase}
+                  revealed={revealed}
                 />
               ) : (
                 <ChoiceCheck
+                  key={attempt}
                   prompt={data.check.prompt}
                   options={data.check.options}
                   correctIndex={data.check.correctIndex}
@@ -118,12 +135,13 @@ export function InteractiveExperience({ data, xp, accent, onMistake, onComplete 
                   onReadyChange={setReady}
                   onResult={handleCheckResult}
                   phase={phase}
+                  revealed={revealed}
                 />
               )}
 
-              {/* Explanation — ALWAYS shown after answering, right or wrong */}
+              {/* Explanation — shown once the learner earns it (right or revealed) */}
               <AnimatePresence>
-                {phase !== 'answering' && (
+                {showOutcome && (
                   <motion.div key="expl"
                     initial={{ opacity:0, height:0, marginTop:0 }}
                     animate={{ opacity:1, height:'auto', marginTop:22 }}
@@ -159,16 +177,28 @@ export function InteractiveExperience({ data, xp, accent, onMistake, onComplete 
             transition={{ type:'spring', stiffness:400, damping:32 }}
             style={{ position:'fixed', bottom:0, left:0, right:0, background:isCorrect?'#ECFDF3':'#FFF1F2', borderTop:`2px solid ${isCorrect?'#BBF7D0':'#FECDD3'}`, padding:'16px 20px 28px', zIndex:30 }}>
             <div style={{ maxWidth:640, margin:'0 auto', display:'flex', alignItems:'center', gap:16 }}>
-              <Mascot state={isCorrect?'correct':'wrong'} size="md" showBubble bubbleText={isCorrect?'Correct! 🎉':'Not quite!'}/>
-              <div style={{ flex:1 }}>
+              <Mascot state={isCorrect?'correct':'wrong'} size="md" showBubble bubbleText={isCorrect?'Correct! 🎉':revealed?'Here\'s the answer':'Not quite!'}/>
+              <div style={{ flex:1, minWidth:0 }}>
                 <p style={{ fontFamily:'var(--atl-font-display)', fontSize:'17px', fontWeight:800, color:isCorrect?'#15803D':'#BE123C', margin:'0 0 3px' }}>
-                  {isCorrect ? 'Correct!' : 'Not quite!'}
+                  {isCorrect ? 'Correct!' : revealed ? 'The answer' : 'Not quite!'}
                 </p>
                 <p style={{ fontFamily:'var(--atl-font-body)', fontSize:'13px', color:isCorrect?'#166534':'#9F1239', margin:0, fontWeight:500, lineHeight:1.4 }}>
-                  {isCorrect ? `+${xp} XP earned!` : 'See what it means below, then continue.'}
+                  {isCorrect ? `+${xp} XP earned!` : revealed ? 'See what it means below, then continue.' : `💡 ${checkHint}`}
                 </p>
               </div>
-              <TactileButton variant="continue" onClick={finish} size="md">Continue</TactileButton>
+              {isCorrect || revealed ? (
+                <TactileButton variant="continue" onClick={finish} size="md">Continue</TactileButton>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:8, flexShrink:0 }}>
+                  <TactileButton variant="check" onClick={tryAgain} size="md">Try again</TactileButton>
+                  {canReveal && (
+                    <button onClick={() => setRevealed(true)}
+                      style={{ background:'none', border:'none', cursor:'pointer', fontFamily:'var(--atl-font-body)', fontSize:'12px', fontWeight:700, color:'#E11D48', textDecoration:'underline', padding:0, whiteSpace:'nowrap' }}>
+                      Reveal answer
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </motion.div>
         ) : (
@@ -484,7 +514,7 @@ function PredictScene({ predict, ex, accent, onTried }: {
 }
 
 // ── CHECK (choice): tap the correct statement, used for recall concepts ───────
-function ChoiceCheck({ prompt, options, correctIndex, checkTrigger, onReadyChange, onResult, phase }: {
+function ChoiceCheck({ prompt, options, correctIndex, checkTrigger, onReadyChange, onResult, phase, revealed = false }: {
   prompt: string;
   options: string[];
   correctIndex: number;
@@ -492,9 +522,11 @@ function ChoiceCheck({ prompt, options, correctIndex, checkTrigger, onReadyChang
   onReadyChange: (ready: boolean) => void;
   onResult: (correct: boolean) => void;
   phase: Phase;
+  revealed?: boolean;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const isAnswering = phase === 'answering' && checkTrigger === 0;
+  const showAnswer  = phase === 'correct' || revealed;
 
   useEffect(() => { onReadyChange(selected !== null); }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -503,9 +535,10 @@ function ChoiceCheck({ prompt, options, correctIndex, checkTrigger, onReadyChang
   }, [checkTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const optState = (i: number): OptionState => {
-    if (phase === 'answering') return selected === i ? 'selected' : 'default';
-    if (i === correctIndex)    return 'correct';
-    if (selected === i)        return 'wrong';
+    if (phase === 'answering')           return selected === i ? 'selected' : 'default';
+    // Flag the wrong pick; only reveal the correct one once earned.
+    if (selected === i && i !== correctIndex) return 'wrong';
+    if (i === correctIndex)              return showAnswer ? 'correct' : 'default';
     return 'default';
   };
 

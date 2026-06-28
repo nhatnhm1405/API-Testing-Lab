@@ -10,7 +10,7 @@ import { DragDropCategorizeExercise } from "./DragDropCategorize";
 import { DragDropOrderExercise } from "./DragDropOrder";
 import { MiniPostman } from "./MiniPostman";
 import { InteractiveExperience } from "./InteractiveExperience";
-import { MODULES } from "../data/courseData";
+import { MODULES, getCorrectAnswer, getHint } from "../data/courseData";
 import type { FillBlankData, DragCategorizeData, DragOrderData, PostmanData, InteractiveData } from "../data/courseData";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
@@ -33,6 +33,15 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
   const [isReady,       setIsReady]       = useState(false);
   const [checkTrigger,  setCheckTrigger]  = useState(0);
   const [showWhy,       setShowWhy]       = useState(false);
+  // How many times the learner has missed THIS lesson, and a remount counter so
+  // "Try again" gives a clean exercise. `revealed` shows the answer + explanation
+  // once the learner has earned the way out (or asked for it after 2 misses).
+  const [wrongCount,    setWrongCount]    = useState(0);
+  const [attempt,       setAttempt]       = useState(0);
+  const [revealed,      setRevealed]      = useState(false);
+
+  // Offer the "Reveal answer" escape hatch from the 2nd wrong try onward.
+  const canReveal = wrongCount >= 2;
 
   const isCorrect = phase === 'correct';
   const isWrong   = phase === 'wrong';
@@ -41,13 +50,25 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
   const isInteractive = type === 'interactive';
 
   const handleExerciseResult = (correct: boolean) => {
-    if (!correct) onMistake(lesson.id);
+    if (!correct) {
+      onMistake(lesson.id);
+      setWrongCount(c => c + 1);
+    }
     setPhase(correct ? 'correct' : 'wrong');
   };
 
   const handleCheck = () => {
     if (isPostman) return;
     setCheckTrigger(t => t + 1);
+  };
+
+  // Wrong answers don't advance — they hand the learner a fresh attempt.
+  // Bumping `attempt` remounts the exercise so its highlights/word-bank reset.
+  const handleTryAgain = () => {
+    setPhase('answering');
+    setIsReady(false);
+    setCheckTrigger(0);
+    setAttempt(a => a + 1);
   };
 
   const handleContinue = () => {
@@ -58,13 +79,18 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
     setPhase('answering');
     setIsReady(false);
     setCheckTrigger(0);
+    setWrongCount(0);
+    setAttempt(0);
+    setRevealed(false);
   };
 
   const frameState = isCorrect ? 'correct' : isWrong ? 'wrong' : 'default';
 
   const checkReady = isPostman ? false : isReady;
 
-  const explanation = (lesson.data as { explanation: string }).explanation ?? '';
+  const explanation   = (lesson.data as { explanation: string }).explanation ?? '';
+  const correctAnswer = getCorrectAnswer(lesson.data);
+  const hint          = getHint(lesson.data);
 
   return (
     <>
@@ -77,7 +103,7 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
         {/* Exercise area */}
         <div style={{ flex:1, maxWidth: isPostman ? 900 : 640, margin:'0 auto', width:'100%', padding: isPostman ? '24px 20px 60px' : '24px 20px 160px', boxSizing:'border-box' }}>
           <AnimatePresence mode="wait">
-            <motion.div key={lesson.id} initial={{ opacity:0,x:20 }} animate={{ opacity:1,x:0 }} exit={{ opacity:0,x:-20 }} transition={{ duration:.25 }}>
+            <motion.div key={`${lesson.id}-${attempt}`} initial={{ opacity:0,x:20 }} animate={{ opacity:1,x:0 }} exit={{ opacity:0,x:-20 }} transition={{ duration:.25 }}>
 
               {/* Module + lesson label */}
               <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:20 }}>
@@ -166,20 +192,54 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
                 transition={{ type:'spring',stiffness:400,damping:32 }}
                 style={{ position:'fixed',bottom:0,left:0,right:0,background:isCorrect?'#ECFDF3':'#FFF1F2',borderTop:`2px solid ${isCorrect?'#BBF7D0':'#FECDD3'}`,padding:'16px 20px 28px',zIndex:30 }}>
                 <div style={{ maxWidth:640,margin:'0 auto',display:'flex',alignItems:'center',gap:16 }}>
-                  <Mascot state={isCorrect?'correct':'wrong'} size="md" showBubble bubbleText={isCorrect?'Correct! 🎉':'Not quite!'}/>
-                  <div style={{ flex:1 }}>
+                  <Mascot state={isCorrect?'correct':'wrong'} size="md" showBubble bubbleText={isCorrect?'Correct! 🎉':revealed?'Here\'s the answer':'Not quite!'}/>
+                  <div style={{ flex:1,minWidth:0 }}>
                     <p style={{ fontFamily:'var(--atl-font-display)',fontSize:'17px',fontWeight:800,color:isCorrect?'#15803D':'#BE123C',margin:'0 0 3px' }}>
-                      {isCorrect ? 'Correct!' : 'Not quite!'}
+                      {isCorrect ? 'Correct!' : revealed ? 'The answer' : 'Not quite!'}
                     </p>
-                    <p style={{ fontFamily:'var(--atl-font-body)',fontSize:'13px',color:isCorrect?'#166534':'#9F1239',margin:0,fontWeight:500,lineHeight:1.4 }}>
-                      {isCorrect ? `+${lesson.xp} XP earned!` : 'Review the explanation below.'}
-                    </p>
-                    <button onClick={() => setShowWhy(true)}
-                      style={{ marginTop:5,background:'none',border:'none',cursor:'pointer',fontFamily:'var(--atl-font-body)',fontSize:'13px',fontWeight:700,color:isCorrect?'#16A34A':'#E11D48',textDecoration:'underline',padding:0 }}>
-                      Why? →
-                    </button>
+
+                    {isCorrect ? (
+                      <>
+                        <p style={{ fontFamily:'var(--atl-font-body)',fontSize:'13px',color:'#166534',margin:0,fontWeight:500,lineHeight:1.4 }}>
+                          {`+${lesson.xp} XP earned!`}
+                        </p>
+                        <button onClick={() => setShowWhy(true)}
+                          style={{ marginTop:5,background:'none',border:'none',cursor:'pointer',fontFamily:'var(--atl-font-body)',fontSize:'13px',fontWeight:700,color:'#16A34A',textDecoration:'underline',padding:0 }}>
+                          Why? →
+                        </button>
+                      </>
+                    ) : revealed ? (
+                      <>
+                        {correctAnswer && (
+                          <p style={{ fontFamily:'var(--atl-font-body)',fontSize:'13px',color:'#9F1239',margin:'0 0 3px',fontWeight:700,lineHeight:1.4 }}>
+                            ✓ {correctAnswer}
+                          </p>
+                        )}
+                        <p style={{ fontFamily:'var(--atl-font-body)',fontSize:'13px',color:'#9F1239',margin:0,fontWeight:500,lineHeight:1.4 }}>
+                          {explanation}
+                        </p>
+                      </>
+                    ) : (
+                      <p style={{ fontFamily:'var(--atl-font-body)',fontSize:'13px',color:'#9F1239',margin:0,fontWeight:500,lineHeight:1.4 }}>
+                        💡 {hint}
+                      </p>
+                    )}
                   </div>
-                  <TactileButton variant="continue" onClick={handleContinue} size="md">Continue</TactileButton>
+
+                  {/* Correct or revealed → may continue. Otherwise stay and retry. */}
+                  {isCorrect || revealed ? (
+                    <TactileButton variant="continue" onClick={handleContinue} size="md">Continue</TactileButton>
+                  ) : (
+                    <div style={{ display:'flex',flexDirection:'column',gap:8,flexShrink:0 }}>
+                      <TactileButton variant="check" onClick={handleTryAgain} size="md">Try again</TactileButton>
+                      {canReveal && (
+                        <button onClick={() => setRevealed(true)}
+                          style={{ background:'none',border:'none',cursor:'pointer',fontFamily:'var(--atl-font-body)',fontSize:'12px',fontWeight:700,color:'#E11D48',textDecoration:'underline',padding:0,whiteSpace:'nowrap' }}>
+                          Reveal answer
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </motion.div>
             ) : (

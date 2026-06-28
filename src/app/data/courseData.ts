@@ -184,6 +184,30 @@ export function getLessonPrompt(data: LessonData): string {
   }
 }
 
+// The correct answer for an exercise, as readable text. Used to "reveal" the
+// answer after the learner has missed it several times. Returns null for types
+// that own their own answer feedback (postman / interactive).
+export function getCorrectAnswer(data: LessonData): string | null {
+  switch (data.type) {
+    case 'mcq':             return data.options[data.correctIndex];
+    case 'fill-blank':      return data.blanks.join(', ');
+    case 'drag-categorize': return data.cards.map(c => `${c.text} → ${c.correctBucket}`).join(' · ');
+    case 'drag-order':      return data.items.map((it, i) => `${i + 1}. ${it.text}`).join('   ');
+    default:                return null;
+  }
+}
+
+// A gentle nudge toward the answer, shown the moment a learner gets it wrong
+// (before the full answer is revealed). Type-specific so it actually helps.
+export function getHint(data: LessonData): string {
+  switch (data.type) {
+    case 'fill-blank':      return 'Re-read the sentence and reconsider the highlighted words — each blank has one best fit.';
+    case 'drag-categorize': return 'Some cards are in the wrong group. Re-read the instruction and move the highlighted ones.';
+    case 'drag-order':      return 'The order isn\'t right yet. Think about which step has to happen first.';
+    default:                return 'Take another look and try again.';
+  }
+}
+
 // ── Course data ───────────────────────────────────────────────────
 
 export const MODULES: Module[] = [

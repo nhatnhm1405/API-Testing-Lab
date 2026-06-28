@@ -7,6 +7,7 @@ type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams';
 
 interface SkillCheckScreenProps {
   onNavigate: (v: View) => void;
+  onNextModule: () => void;
   moduleNumber: number;
   moduleTitle: string;
   accent: string;
@@ -14,7 +15,7 @@ interface SkillCheckScreenProps {
   isLastModule: boolean;
 }
 
-export function SkillCheckScreen({ onNavigate, moduleNumber, moduleTitle, accent, topics, isLastModule }: SkillCheckScreenProps) {
+export function SkillCheckScreen({ onNavigate, onNextModule, moduleNumber, moduleTitle, accent, topics, isLastModule }: SkillCheckScreenProps) {
   return (
     <div style={{ minHeight:'100%',background:'var(--atl-canvas)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'40px 24px',position:'relative',overflow:'hidden' }}>
       {/* Glow */}
@@ -72,7 +73,7 @@ export function SkillCheckScreen({ onNavigate, moduleNumber, moduleTitle, accent
           {isLastModule ? (
             <TactileButton variant="primary" fullWidth onClick={() => onNavigate('path')}>View learning path →</TactileButton>
           ) : (
-            <TactileButton variant="primary" fullWidth onClick={() => onNavigate('lesson')}>Continue to next module →</TactileButton>
+            <TactileButton variant="primary" fullWidth onClick={onNextModule}>Continue to next module →</TactileButton>
           )}
           <TactileButton variant="ghost" fullWidth size="md" onClick={() => onNavigate('home')}>Back to home</TactileButton>
         </motion.div>
