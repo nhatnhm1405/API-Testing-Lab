@@ -1,4 +1,4 @@
-import { Zap, Menu, Code2, Volume2, VolumeX } from "lucide-react";
+import { Zap, Menu, Code2, Volume2, VolumeX, HelpCircle } from "lucide-react";
 import { GitHubLink } from "./GitHubLink";
 import { useIsMobile } from "./ui/use-mobile";
 import { useSoundMuted, playSound } from "../lib/sound";
@@ -8,9 +8,10 @@ interface NavBarProps {
   xp?: number;
   onMenu?: () => void;
   onLogoClick?: () => void;
+  onHelp?: () => void;
 }
 
-export function NavBar({ streak = 15, xp = 340, onMenu, onLogoClick }: NavBarProps) {
+export function NavBar({ streak = 15, xp = 340, onMenu, onLogoClick, onHelp }: NavBarProps) {
   const isMobile = useIsMobile();
   const [muted, toggleMuted] = useSoundMuted();
 
@@ -79,6 +80,24 @@ export function NavBar({ streak = 15, xp = 340, onMenu, onLogoClick }: NavBarPro
         >
           {muted ? <VolumeX size={19} strokeWidth={2}/> : <Volume2 size={19} strokeWidth={2}/>}
         </button>
+
+        {onHelp && (
+          <button
+            onClick={onHelp}
+            aria-label="Replay the guided tour"
+            title="How this works"
+            style={{
+              width: 36, height: 36, border: 'none', background: 'transparent',
+              cursor: 'pointer', borderRadius: '8px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#6B6A7B', transition: 'background .15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#F2EFEA')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <HelpCircle size={19} strokeWidth={2}/>
+          </button>
+        )}
 
         <GitHubLink variant="icon" />
 

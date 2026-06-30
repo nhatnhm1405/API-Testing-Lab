@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { NavBar } from "./components/NavBar";
+import { GuidedTour, type TourStep } from "./components/GuidedTour";
 import { HomeDashboard } from "./components/HomeDashboard";
 import { LearningPath } from "./components/LearningPath";
 import { LessonScreen } from "./components/LessonScreen";
@@ -15,8 +16,28 @@ export type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diag
 
 const NO_NAV: View[] = ['lesson'];
 
+// First-visit coachmark tour over the dashboard: spotlights each region and
+// explains what it's for (mobile-game style), then is remembered so it only
+// runs once.
+const TOUR_SEEN_KEY = 'atl-home-tour-seen';
+const hasSeenTour = () => {
+  try { return typeof localStorage !== 'undefined' && localStorage.getItem(TOUR_SEEN_KEY) === '1'; }
+  catch { return false; }
+};
+const markTourSeen = () => {
+  try { localStorage.setItem(TOUR_SEEN_KEY, '1'); } catch { /* storage unavailable — ignore */ }
+};
+
+const HOME_TOUR: TourStep[] = [
+  { anchor: 'start',    title: 'Start here',       body: 'New to APIs? Watch one come to life in a 2-minute phở story, then roll straight into Module 1.' },
+  { anchor: 'topics',   title: 'Pick a topic',     body: 'Each tile is a topic — from "What is an API" all the way to writing tests. Tap one to dive in.' },
+  { anchor: 'streak',   title: 'Keep your streak', body: 'Learn a little every day. Your streak and XP grow with every lesson you finish.' },
+  { anchor: 'practice', title: 'Practice for real',body: 'Open the Lab to send live API requests and test them yourself — no setup needed.' },
+];
+
 export default function App() {
   const [view,             setView]             = useState<View>('home');
+  const [showTour,         setShowTour]         = useState(() => !hasSeenTour());
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
   const [xp,               setXP]               = useState(USER_XP);
   // Lessons the user answered incorrectly (noted for review)
@@ -31,6 +52,8 @@ export default function App() {
   const [pathModuleIdx,    setPathModuleIdx]    = useState(0);
 
   const navigate = (next: View) => setView(next);
+
+  const finishTour = () => { markTourSeen(); setShowTour(false); };
 
   // Open the Brilliant-style detail page for a given module.
   const openModulePath = (moduleIdx: number) => {
@@ -106,7 +129,8 @@ export default function App() {
   return (
     <div style={{ width:'100%', minHeight:'100vh', background:'var(--atl-canvas)', fontFamily:'var(--atl-font-body)', display:'flex', flexDirection:'column' }}>
       {!NO_NAV.includes(view) && (
-        <NavBar streak={USER_STREAK} xp={xp} onLogoClick={() => navigate('home')}/>
+        <NavBar streak={USER_STREAK} xp={xp} onLogoClick={() => navigate('home')}
+          onHelp={() => { setView('home'); setShowTour(true); }}/>
       )}
 
       <div style={{ flex:1, position:'relative' }}>
@@ -163,7 +187,7 @@ export default function App() {
           )}
           {view === 'diagrams' && (
             <Screen key="diagrams">
-              <ConceptDiagrams onNavigate={navigate}/>
+              <ConceptDiagrams onNavigate={navigate} onEnterCourse={() => openLesson(0, 0)}/>
             </Screen>
           )}
           {view === 'simulator' && (
@@ -178,6 +202,8 @@ export default function App() {
           )}
         </AnimatePresence>
       </div>
+
+      <GuidedTour steps={HOME_TOUR} run={view === 'home' && showTour} onFinish={finishTour}/>
     </div>
   );
 }

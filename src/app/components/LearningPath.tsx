@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { CheckCircle2, Play, ChevronLeft, ArrowRight, RotateCcw } from "lucide-react";
+import { CheckCircle2, Play, ChevronLeft, ArrowRight, RotateCcw, Target } from "lucide-react";
 import { Mascot } from "./Mascot";
 import { useIsMobile } from "./ui/use-mobile";
 import { MODULES } from "../data/courseData";
@@ -33,7 +33,14 @@ export function LearningPath({ onNavigate, onOpenLesson, completedLessons, onRes
       </div>
       <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11px', fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: mod.accent }}>Module {moduleIdx + 1}</span>
       <h2 style={{ fontFamily: 'var(--atl-font-display)', fontSize: '26px', fontWeight: 800, color: 'var(--atl-ink)', margin: '4px 0 8px', letterSpacing: '-0.025em', lineHeight: 1.1 }}>{mod.title}</h2>
-      <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: '14px', fontWeight: 500, color: 'var(--atl-ink-soft)', margin: '0 0 18px', lineHeight: 1.5 }}>{mod.subtitle}</p>
+      <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: '14px', fontWeight: 500, color: 'var(--atl-ink-soft)', margin: '0 0 14px', lineHeight: 1.5 }}>{mod.subtitle}</p>
+      <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start', background: `${mod.accent}0D`, border: `1.5px solid ${mod.accent}26`, borderRadius: 13, padding: '11px 13px', margin: '0 0 18px' }}>
+        <Target size={15} color={mod.accent} strokeWidth={2.5} style={{ flexShrink: 0, marginTop: 2 }} />
+        <div>
+          <div style={{ fontFamily: 'var(--atl-font-body)', fontSize: '10px', fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: mod.accent }}>You'll be able to</div>
+          <div style={{ fontFamily: 'var(--atl-font-body)', fontSize: '13px', fontWeight: 600, color: 'var(--atl-ink)', lineHeight: 1.4, marginTop: 2 }}>{mod.outcome}</div>
+        </div>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <Stat value={`${mod.lessons.length}`} label="lessons" />
         <div style={{ width: 1, height: 28, background: 'var(--atl-hairline)' }} />

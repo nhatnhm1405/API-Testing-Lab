@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Send, Plus, Trash2, ChevronDown, ChevronRight,
-  X, Lightbulb, Zap, RotateCcw, Lock, Search,
+  X, Lightbulb, Zap, RotateCcw, Lock, Search, Check, FlaskConical,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Mascot } from "./Mascot";
@@ -19,6 +19,15 @@ type VerifyPhase = 'idle' | 'sending' | 'done';
 
 interface Header { key: string; value: string; locked?: boolean }
 interface Resp   { status: number; statusText: string; lines: string[]; emptyNote?: string }
+
+// A single test assertion checked against the actual response. This is what
+// turns the simulator into a real test-runner: each request is scored PASS/FAIL.
+interface Assertion { label: string; kind: 'status' | 'bodyIncludes' | 'bodyEmpty'; expect?: string | number }
+function runAssertion(a: Assertion, resp: Resp): boolean {
+  if (a.kind === 'status')    return resp.status === a.expect;
+  if (a.kind === 'bodyEmpty') return resp.lines.length === 0;
+  return resp.lines.join('\n').includes(String(a.expect));
+}
 interface Scenario {
   task: string;
   urlBase: string;
@@ -36,6 +45,7 @@ interface Scenario {
   wrongBodyResponse?: Resp;
   initialFail?: Resp;
   explanation: Array<{ label: string; value: string; color: string; bg: string; note: string }>;
+  assertions: Assertion[];
   hasVerify?: boolean;
 }
 
@@ -53,6 +63,11 @@ const M: Record<string, { grad: string; ledge: string; muted: string; text: stri
 const SCENARIOS: Record<DemoMode, Scenario> = {
   normal: {
     task:          '🎯 Send a GET request to fetch the user with ID 1.',
+    assertions: [
+      { label: 'status == 200',            kind: 'status',       expect: 200 },
+      { label: 'body has "id": 1',         kind: 'bodyIncludes', expect: '"id": 1' },
+      { label: 'name == "Ada Lovelace"',   kind: 'bodyIncludes', expect: 'Ada Lovelace' },
+    ],
     urlBase:       'https://api.example.com/users/',
     urlHint:       '1',
     correctMethod: 'GET',
@@ -87,6 +102,10 @@ const SCENARIOS: Record<DemoMode, Scenario> = {
 
   debug: {
     task:          '🔐 This request returns 401. Add the missing Authorization header to fix it.',
+    assertions: [
+      { label: 'status == 200',     kind: 'status',       expect: 200 },
+      { label: 'role == "admin"',   kind: 'bodyIncludes', expect: 'admin' },
+    ],
     urlBase:       'https://api.example.com/',
     urlHint:       'profile',
     correctMethod: 'GET',
@@ -125,6 +144,11 @@ const SCENARIOS: Record<DemoMode, Scenario> = {
 
   post: {
     task:          '🎯 Create a new user named Grace Hopper (role: editor) by sending a POST request with a JSON body.',
+    assertions: [
+      { label: 'status == 201 (Created)',  kind: 'status',       expect: 201 },
+      { label: 'name == "Grace Hopper"',   kind: 'bodyIncludes', expect: 'Grace Hopper' },
+      { label: 'server assigned an id',    kind: 'bodyIncludes', expect: '"id"' },
+    ],
     urlBase:       'https://api.example.com/',
     urlHint:       'users',
     correctMethod: 'POST',
@@ -164,6 +188,10 @@ const SCENARIOS: Record<DemoMode, Scenario> = {
 
   put: {
     task:          "🎯 Update user #7: set their role to 'admin' by replacing the profile with a PUT request.",
+    assertions: [
+      { label: 'status == 200',          kind: 'status',       expect: 200 },
+      { label: 'role updated to "admin"', kind: 'bodyIncludes', expect: 'admin' },
+    ],
     urlBase:       'https://api.example.com/users/',
     urlHint:       '7',
     correctMethod: 'PUT',
@@ -198,6 +226,10 @@ const SCENARIOS: Record<DemoMode, Scenario> = {
 
   delete: {
     task:          '🎯 Delete the user with ID 7.',
+    assertions: [
+      { label: 'status == 204 (No Content)', kind: 'status',    expect: 204 },
+      { label: 'response body is empty',     kind: 'bodyEmpty' },
+    ],
     urlBase:       'https://api.example.com/users/',
     urlHint:       '7',
     correctMethod: 'DELETE',
@@ -323,6 +355,40 @@ function TravelDiagram({ phase, method }: { phase: TravelPhase; method: string }
       <div style={{ position:'absolute', bottom:6, left:0, width:56, textAlign:'center', fontFamily:'var(--atl-font-body)', fontSize:10, fontWeight:600, color:'#A7A3AD' }}>Client</div>
       <div style={{ position:'absolute', bottom:6, right:0, width:56, textAlign:'center', fontFamily:'var(--atl-font-body)', fontSize:10, fontWeight:600, color:'#A7A3AD' }}>Server</div>
     </div>
+  );
+}
+
+// ── Tests panel ────────────────────────────────────────────────────────────────
+// Scores the actual response against the scenario's assertions — PASS/FAIL — so
+// the simulator reads like a real API test-runner, not just a request sender.
+
+function TestsPanel({ assertions, resp }: { assertions: Assertion[]; resp: Resp }) {
+  const results = assertions.map(a => ({ label: a.label, ok: runAssertion(a, resp) }));
+  const passed = results.filter(r => r.ok).length;
+  const all = results.length;
+  const allPass = passed === all;
+  return (
+    <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:.15 }}
+      style={{ background:'#FFF', border:`1.5px solid ${allPass ? '#BBF7D0' : '#FECDD3'}`, borderRadius:14, padding:'12px 14px' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+        <FlaskConical size={15} color={allPass ? '#16A34A' : '#E11D48'} strokeWidth={2.4}/>
+        <span style={{ fontFamily:'var(--atl-font-body)', fontSize:'12px', fontWeight:800, textTransform:'uppercase', letterSpacing:'.07em', color:'#6B6A7B', flex:1 }}>Tests</span>
+        <span style={{ fontFamily:'var(--atl-font-body)', fontSize:'12px', fontWeight:800, color: allPass ? '#15803D' : '#9F1239', background: allPass ? '#ECFDF3' : '#FFF1F2', border:`1.5px solid ${allPass ? '#BBF7D0' : '#FECDD3'}`, borderRadius:100, padding:'3px 10px' }}>
+          {passed}/{all} passed
+        </span>
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+        {results.map((r, i) => (
+          <motion.div key={i} initial={{ opacity:0, x:-6 }} animate={{ opacity:1, x:0 }} transition={{ delay:.2 + i*.08 }}
+            style={{ display:'flex', alignItems:'center', gap:9 }}>
+            <div style={{ width:20, height:20, borderRadius:'50%', flexShrink:0, background: r.ok ? '#ECFDF3' : '#FFF1F2', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              {r.ok ? <Check size={12} color="#16A34A" strokeWidth={3}/> : <X size={12} color="#E11D48" strokeWidth={3}/>}
+            </div>
+            <span style={{ fontFamily:'monospace', fontSize:'12.5px', fontWeight:600, color: r.ok ? '#166534' : '#9F1239' }}>{r.label}</span>
+          </motion.div>
+        ))}
+      </div>
+    </motion.div>
   );
 }
 
@@ -855,6 +921,11 @@ export function APISimulator({ onClose }: APISimulatorProps) {
                         </pre>
                       )}
                     </motion.div>
+
+                    {/* Tests panel — PASS/FAIL against the actual response */}
+                    {(visibleLines >= resp.lines.length || resp.lines.length === 0) && (
+                      <TestsPanel assertions={sc.assertions} resp={resp}/>
+                    )}
 
                     {/* Wrong hint */}
                     {simState.startsWith('wrong') && (visibleLines >= resp.lines.length || resp.lines.length === 0) && (

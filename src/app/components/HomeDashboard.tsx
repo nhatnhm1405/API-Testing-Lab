@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowRight, ChevronRight, AlertCircle, Check, Zap, FlaskConical, ListChecks } from "lucide-react";
+import { ArrowRight, ChevronRight, ChevronDown, AlertCircle, Check, Zap, FlaskConical, ListChecks } from "lucide-react";
 import { useIsMobile } from "./ui/use-mobile";
 import { MODULES, USER_NAME, USER_STREAK, getCurrentModule } from "../data/courseData";
 
@@ -25,6 +25,10 @@ interface HomeDashboardProps {
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const FILLED = [true, true, true, true, true, false, false];
 
+// Short, scannable topic labels shown under each module tile — so a newcomer
+// can see what the course covers at a glance (parallel to MODULES order).
+const TOPIC_LABELS = ['What is an API', 'HTTP & Status', 'Requests', 'Testing'];
+
 // featured selection: -1 = Module 0 (Phở), 0..3 = MODULES index
 const PHO = -1;
 
@@ -44,13 +48,21 @@ export function HomeDashboard({ onNavigate, onOpenModulePath, completedLessons, 
 
   // ── pieces ────────────────────────────────────────────────────────
   const welcome = (
-    <h2 style={{ fontFamily: 'var(--atl-font-display)', fontSize: isMobile ? '22px' : '24px', fontWeight: 800, color: 'var(--atl-ink)', margin: 0, letterSpacing: '-0.02em' }}>
-      Welcome, {USER_NAME}
-    </h2>
+    <div>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'linear-gradient(135deg,#2E5BFF,#5B7BFF)', color: '#fff', borderRadius: 100, padding: '5px 13px', marginBottom: 9, boxShadow: '0 4px 12px rgba(46,91,255,.3)' }}>
+        <FlaskConical size={13} color="#fff" strokeWidth={2.6} />
+        <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11.5px', fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase' }}>
+          API Testing Course
+        </span>
+      </div>
+      <h2 style={{ fontFamily: 'var(--atl-font-display)', fontSize: isMobile ? '22px' : '24px', fontWeight: 800, color: 'var(--atl-ink)', margin: 0, letterSpacing: '-0.02em' }}>
+        Welcome, {USER_NAME}
+      </h2>
+    </div>
   );
 
   const streakCard = (
-    <div style={{ background: 'var(--atl-surface)', borderRadius: 22, border: '1.5px solid var(--atl-hairline)', boxShadow: '0 1px 2px rgba(28,27,42,.05), 0 10px 28px rgba(28,27,42,.06)', padding: 22 }}>
+    <div data-tour="streak" style={{ background: 'var(--atl-surface)', borderRadius: 22, border: '1.5px solid var(--atl-hairline)', boxShadow: '0 1px 2px rgba(28,27,42,.05), 0 10px 28px rgba(28,27,42,.06)', padding: 22 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -80,7 +92,7 @@ export function HomeDashboard({ onNavigate, onOpenModulePath, completedLessons, 
   );
 
   const secondary = (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+    <div data-tour="practice" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
       <SecondaryTile icon={<ListChecks size={18} color="#fff" strokeWidth={2.4} />} grad="linear-gradient(135deg,#8B5CF6,#A78BFA)" title="Quiz" badge="Soon" />
       <SecondaryTile icon={<FlaskConical size={18} color="#fff" strokeWidth={2.4} />} grad="linear-gradient(135deg,#10B981,#34D399)" title="Lab" onClick={() => onNavigate('simulator')} />
     </div>
@@ -98,25 +110,24 @@ export function HomeDashboard({ onNavigate, onOpenModulePath, completedLessons, 
     </motion.button>
   );
 
-  const jumpHeader = (
-    <h2 style={{ fontFamily: 'var(--atl-font-display)', fontSize: isMobile ? '22px' : '24px', fontWeight: 800, color: 'var(--atl-ink)', margin: 0, letterSpacing: '-0.02em' }}>
-      {featured === PHO ? 'Start here' : 'Jump back in'}
-    </h2>
-  );
+  const courseHeader = <CourseHeader isMobile={isMobile} onOpenModule={openModule} completedLessons={completedLessons} />;
 
   const featuredCard = (
-    <FeaturedCard
-      featured={featured} dir={dir} isMobile={isMobile} completedLessons={completedLessons}
-      onStart={() => featured === PHO ? onNavigate('diagrams') : openModule(featured)}
-    />
+    <div data-tour="start">
+      <FeaturedCard
+        featured={featured} dir={dir} isMobile={isMobile} completedLessons={completedLessons}
+        onStart={() => featured === PHO ? onNavigate('diagrams') : openModule(featured)}
+      />
+    </div>
   );
 
   const tiles = (
-    <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 2, marginTop: 10 }}>
-      <ModuleTile selected={featured === PHO} onClick={() => selectFeatured(PHO)} grad="linear-gradient(135deg,#F97316,#FB923C)" emblem="🍜" />
+    <div data-tour="topics" style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 2, marginTop: 10 }}>
+      <ModuleTile selected={featured === PHO} onClick={() => selectFeatured(PHO)} grad="linear-gradient(135deg,#F97316,#FB923C)" emblem="🍜" caption="Start" />
       {MODULES.map((m, mi) => (
         <ModuleTile key={m.id} selected={featured === mi} onClick={() => selectFeatured(mi)}
           grad={`linear-gradient(135deg,${m.nodeColor[0]},${m.nodeColor[1]})`} emblem={`${mi + 1}`}
+          caption={TOPIC_LABELS[mi]}
           done={m.lessons.every(l => completedLessons.has(l.id))} />
       ))}
     </div>
@@ -128,7 +139,7 @@ export function HomeDashboard({ onNavigate, onOpenModulePath, completedLessons, 
       <div style={{ minHeight: '100%', background: 'var(--atl-canvas)' }}>
         <div style={{ maxWidth: 560, margin: '0 auto', padding: '20px 16px 40px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {welcome}
-          {jumpHeader}
+          {courseHeader}
           {featuredCard}
           {tiles}
           {streakCard}
@@ -151,12 +162,82 @@ export function HomeDashboard({ onNavigate, onOpenModulePath, completedLessons, 
         </div>
         {/* RIGHT */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          {jumpHeader}
+          {courseHeader}
           {featuredCard}
           {tiles}
         </div>
       </div>
     </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Course header — the topic title that doubles as a disclosure: tapping it
+   unfurls a concise syllabus (intro line + the modules, each tappable).
+   ──────────────────────────────────────────────────────────────────── */
+function CourseHeader({ isMobile, onOpenModule, completedLessons }: {
+  isMobile: boolean; onOpenModule: (mi: number) => void; completedLessons: Set<string>;
+}) {
+  const [open, setOpen] = useState(false);
+  const totalLessons = MODULES.reduce((s, m) => s + m.lessons.length, 0);
+  return (
+    <div>
+      <motion.button onClick={() => setOpen(o => !o)} aria-expanded={open} whileHover={{ x: 1 }}
+        style={{ display: 'flex', alignItems: 'center', gap: 11, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}>
+        <div style={{ width: isMobile ? 36 : 42, height: isMobile ? 36 : 42, flexShrink: 0, borderRadius: 13, background: 'linear-gradient(135deg,#2E5BFF,#8B5CF6)', boxShadow: '0 6px 18px rgba(94,60,255,.4), inset 0 1px 0 rgba(255,255,255,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <FlaskConical size={isMobile ? 19 : 22} color="#fff" strokeWidth={2.4} />
+        </div>
+        <h2 style={{ fontFamily: 'var(--atl-font-display)', fontSize: isMobile ? '24px' : '31px', fontWeight: 800, margin: 0, letterSpacing: '-0.03em', lineHeight: 1.02, background: 'linear-gradient(100deg,#2E5BFF,#8B5CF6 52%,#F97316)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          The API Testing Course
+        </h2>
+        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: .2 }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: 'var(--atl-sunken)', color: 'var(--atl-ink-soft)', flexShrink: 0 }}>
+          <ChevronDown size={16} strokeWidth={2.5} />
+        </motion.span>
+      </motion.button>
+      {!open && (
+        <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: '12.5px', fontWeight: 600, color: 'var(--atl-ink-faint)', margin: '4px 0 0' }}>
+          What you’ll learn — tap to expand
+        </p>
+      )}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div key="panel" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: .28, ease: 'easeInOut' }} style={{ overflow: 'hidden' }}>
+            <div style={{ marginTop: 12, background: 'var(--atl-surface)', border: '1.5px solid var(--atl-hairline)', borderRadius: 18, padding: 14, boxShadow: '0 1px 2px rgba(28,27,42,.05), 0 10px 26px rgba(28,27,42,.05)' }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                <Chip>{MODULES.length} modules</Chip>
+                <Chip>{totalLessons} lessons</Chip>
+                <Chip>✋ learn by doing</Chip>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {MODULES.map((m, mi) => {
+                  const done = m.lessons.every(l => completedLessons.has(l.id));
+                  return (
+                    <motion.button key={m.id} whileHover={{ x: 3 }} whileTap={{ scale: .99 }} onClick={() => onOpenModule(mi)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 11, textAlign: 'left', cursor: 'pointer', width: '100%', background: 'var(--atl-canvas)', border: '1.5px solid var(--atl-hairline)', borderRadius: 12, padding: '8px 11px' }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 9, flexShrink: 0, background: `linear-gradient(135deg,${m.nodeColor[0]},${m.nodeColor[1]})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--atl-font-display)', fontSize: 14, fontWeight: 800, color: '#fff' }}>{mi + 1}</div>
+                      <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--atl-font-body)', fontSize: '14px', fontWeight: 700, color: 'var(--atl-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</span>
+                      {done
+                        ? <Check size={15} color="var(--atl-success)" strokeWidth={3} style={{ flexShrink: 0 }} />
+                        : <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11px', fontWeight: 700, color: 'var(--atl-ink-faint)', flexShrink: 0 }}>{m.lessons.length}</span>}
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function Chip({ children }: { children: React.ReactNode }) {
+  return (
+    <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11px', fontWeight: 700, color: 'var(--atl-ink-soft)', background: 'var(--atl-sunken)', borderRadius: 100, padding: '4px 10px' }}>
+      {children}
+    </span>
   );
 }
 
@@ -172,8 +253,8 @@ function FeaturedCard({ featured, dir, isMobile, completedLessons, onStart }: {
   const accent = isPho ? '#F97316' : mod!.accent;
   const accent2 = isPho ? '#FB923C' : mod!.nodeColor[1];
 
-  const eyebrow = isPho ? 'Module 0 · Introduction' : `Module ${featured + 1}`;
-  const title = isPho ? 'The Phở Protocol' : mod!.title;
+  const eyebrow = isPho ? 'Before Module 1 · 2 min' : `Module ${featured + 1}`;
+  const title = isPho ? 'Meet your first API' : mod!.title;
 
   // sub-steps shown inside the card
   const steps = isPho
@@ -182,7 +263,7 @@ function FeaturedCard({ featured, dir, isMobile, completedLessons, onStart }: {
   const firstUndone = steps.findIndex(s => !s.done);
 
   const ctaLabel = isPho
-    ? 'Start here'
+    ? 'Start the story'
     : (mod!.lessons.some(l => completedLessons.has(l.id)) ? 'Continue' : 'Start');
 
   // Horizontal deck: the previous/next module cards peek out on the sides.
@@ -222,6 +303,11 @@ function FeaturedCard({ featured, dir, isMobile, completedLessons, onStart }: {
         <div style={{ textAlign: 'center', marginBottom: isPho ? 10 : 18 }}>
           <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11px', fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: accent }}>{eyebrow}</span>
           <h3 style={{ fontFamily: 'var(--atl-font-display)', fontSize: isPho ? (isMobile ? '32px' : '42px') : (isMobile ? '24px' : '28px'), fontWeight: 800, color: isPho ? '#7C2D12' : 'var(--atl-ink)', margin: '6px 0 0', letterSpacing: '-0.03em', lineHeight: 1.05, textShadow: isPho ? '0 2px 0 rgba(255,255,255,.4)' : undefined }}>{title}</h3>
+          {isPho && (
+            <p style={{ fontFamily: 'var(--atl-font-body)', fontSize: isMobile ? '13px' : '14px', fontWeight: 600, color: '#B47C50', margin: '6px 0 0', lineHeight: 1.4 }}>
+              a quick phở story, then into Module 1 🍜
+            </p>
+          )}
         </div>
 
         {/* illustration */}
@@ -318,23 +404,30 @@ function FlowPreview() {
   );
 }
 
-/* small module selector tile (Brilliant's tile row) */
-function ModuleTile({ selected, onClick, grad, emblem, done }: { selected: boolean; onClick: () => void; grad: string; emblem: string; done?: boolean }) {
+/* small module selector tile (Brilliant's tile row) with a topic caption */
+function ModuleTile({ selected, onClick, grad, emblem, done, caption }: { selected: boolean; onClick: () => void; grad: string; emblem: string; done?: boolean; caption?: string }) {
   return (
-    <motion.button whileHover={{ y: -3 }} whileTap={{ scale: .95 }} onClick={onClick}
-      style={{ position: 'relative', flexShrink: 0, width: 64, height: 64, borderRadius: 18, cursor: 'pointer',
-        background: 'var(--atl-surface)', border: `2px solid ${selected ? 'var(--atl-ink)' : 'var(--atl-hairline)'}`,
-        boxShadow: selected ? '0 6px 16px rgba(28,27,42,.14)' : '0 2px 6px rgba(28,27,42,.05)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 8, transition: 'border-color .15s' }}>
-      <div style={{ width: '100%', height: '100%', borderRadius: 12, background: grad, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--atl-font-display)', fontSize: emblem.length > 1 ? 24 : 18, fontWeight: 800, color: '#fff' }}>
-        {emblem}
-      </div>
-      {done && (
-        <div style={{ position: 'absolute', top: -5, right: -5, width: 20, height: 20, borderRadius: '50%', background: 'var(--atl-success)', border: '2px solid var(--atl-canvas)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Check size={11} color="#fff" strokeWidth={3.5} />
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0, width: 68 }}>
+      <motion.button whileHover={{ y: -3 }} whileTap={{ scale: .95 }} onClick={onClick}
+        style={{ position: 'relative', width: 64, height: 64, borderRadius: 18, cursor: 'pointer',
+          background: 'var(--atl-surface)', border: `2px solid ${selected ? 'var(--atl-ink)' : 'var(--atl-hairline)'}`,
+          boxShadow: selected ? '0 6px 16px rgba(28,27,42,.14)' : '0 2px 6px rgba(28,27,42,.05)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 8, transition: 'border-color .15s' }}>
+        <div style={{ width: '100%', height: '100%', borderRadius: 12, background: grad, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--atl-font-display)', fontSize: emblem.length > 1 ? 24 : 18, fontWeight: 800, color: '#fff' }}>
+          {emblem}
         </div>
+        {done && (
+          <div style={{ position: 'absolute', top: -5, right: -5, width: 20, height: 20, borderRadius: '50%', background: 'var(--atl-success)', border: '2px solid var(--atl-canvas)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Check size={11} color="#fff" strokeWidth={3.5} />
+          </div>
+        )}
+      </motion.button>
+      {caption && (
+        <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: 10.5, fontWeight: 700, lineHeight: 1.15, textAlign: 'center', color: selected ? 'var(--atl-ink)' : 'var(--atl-ink-faint)' }}>
+          {caption}
+        </span>
       )}
-    </motion.button>
+    </div>
   );
 }
 
