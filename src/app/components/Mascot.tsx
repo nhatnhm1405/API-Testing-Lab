@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { emojify } from "../lib/emoji";
 
 export type MascotState = 'idle' | 'correct' | 'wrong' | 'thinking';
 export type MascotSize  = 'xs' | 'sm' | 'md' | 'lg';
@@ -22,28 +23,30 @@ const getAnim = (s: MascotState) => {
 };
 
 // ── Termy — Claude Code's CLI terminal mascot ──────────────────────
-// A little terminal window with a face: a title bar with three
-// "traffic-light" dots, a dark screen, a command prompt, two eyes and
-// a blinking cursor. Same props/states as before so it drops in
-// everywhere the old mascot was used. State is shown by the body
-// animation (bounce / shake / hover) plus the eyes + screen accent:
-//   idle/thinking → square eyes, orange cursor
-//   correct       → happy "^ ^" eyes, green accent
-//   wrong         → "x x" eyes, red accent
+// A little terminal window with a CUTE face: a title bar with three
+// rounded "traffic-light" dots, a dark screen, a command prompt, big
+// round eyes, blush cheeks and a rounded mouth. Same props/states as
+// before so it drops in everywhere the old mascot was used. State is
+// shown by the body animation (bounce / shake / hover) plus the face:
+//   idle/thinking → round blinking eyes, gentle smile, orange accent
+//   correct       → happy "∩ ∩" eyes + big smile, green accent
+//   wrong         → ">  <" eyes + little "o" mouth, red accent
 const ORANGE  = '#D97757';
 const SCREEN  = '#1C1B2A';
 const FRAME   = '#3A3850';
 const GREEN   = '#3FB950';
-const RED     = '#E5534B';
+const RED      = '#E5534B';
 const YELLOW  = '#E3B341';
+const PINK     = '#FF9BB3';
+const WHITE    = '#FBFAFF';
 
 export function Mascot({ state = 'idle', size = 'md', showBubble, bubbleText }: MascotProps) {
   const px = PX[size];
 
   // Screen accent colour by state.
   const accent = state === 'correct' ? GREEN : state === 'wrong' ? RED : ORANGE;
-  // The blinking cursor only blinks while idle/thinking; on a result it stays solid.
-  const cursorBlinks = state === 'idle' || state === 'thinking';
+  // Eyes only blink (and the body idly hovers) while idle/thinking.
+  const blinks = state === 'idle' || state === 'thinking';
 
   return (
     <div style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -59,7 +62,7 @@ export function Mascot({ state = 'idle', size = 'md', showBubble, bubbleText }: 
             whiteSpace: 'nowrap', marginBottom: '8px', position: 'relative',
           }}
         >
-          {bubbleText}
+          {emojify(bubbleText)}
           <span style={{
             position: 'absolute', bottom: '-5px', left: '50%', transform: 'translateX(-50%)',
             width: 0, height: 0,
@@ -81,35 +84,56 @@ export function Mascot({ state = 'idle', size = 'md', showBubble, bubbleText }: 
           <circle cx={31} cy={25} r={3} fill={YELLOW} />
           <circle cx={42} cy={25} r={3} fill={GREEN} />
 
-          {/* command prompt chevron ">" */}
-          <polyline points="19,46 25,52 19,58" fill="none" stroke={accent} strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round" />
+          {/* command prompt chevron ">" — subtle terminal cue, top-left of screen */}
+          <polyline points="14,40 17.5,43.5 14,47" fill="none" stroke={accent} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" opacity={0.55} />
+
+          {/* blush cheeks */}
+          <ellipse cx={31} cy={60} rx={5.5} ry={3.2} fill={PINK} opacity={0.65} />
+          <ellipse cx={69} cy={60} rx={5.5} ry={3.2} fill={PINK} opacity={0.65} />
 
           {/* eyes */}
           {state === 'correct' ? (
             <>
-              <polyline points="42,56 48,49 54,56" fill="none" stroke={GREEN} strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round" />
-              <polyline points="62,56 68,49 74,56" fill="none" stroke={GREEN} strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round" />
+              {/* happy ∩ ∩ eyes */}
+              <path d="M29 54 Q36 45 43 54" fill="none" stroke={GREEN} strokeWidth={4} strokeLinecap="round" />
+              <path d="M57 54 Q64 45 71 54" fill="none" stroke={GREEN} strokeWidth={4} strokeLinecap="round" />
             </>
           ) : state === 'wrong' ? (
             <>
-              <line x1={42} y1={49} x2={52} y2={59} stroke={RED} strokeWidth={3.4} strokeLinecap="round" />
-              <line x1={52} y1={49} x2={42} y2={59} stroke={RED} strokeWidth={3.4} strokeLinecap="round" />
-              <line x1={64} y1={49} x2={74} y2={59} stroke={RED} strokeWidth={3.4} strokeLinecap="round" />
-              <line x1={74} y1={49} x2={64} y2={59} stroke={RED} strokeWidth={3.4} strokeLinecap="round" />
+              {/* x x eyes */}
+              <path d="M31 46 L41 56 M41 46 L31 56" fill="none" stroke={RED} strokeWidth={3.8} strokeLinecap="round" />
+              <path d="M59 46 L69 56 M69 46 L59 56" fill="none" stroke={RED} strokeWidth={3.8} strokeLinecap="round" />
             </>
           ) : (
-            <>
-              <rect x={43} y={49} width={9} height={9} rx={1.5} fill="#fff" />
-              <rect x={64} y={49} width={9} height={9} rx={1.5} fill="#fff" />
-            </>
+            <motion.g
+              style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+              animate={blinks ? { scaleY: [1, 1, 0.1, 1] } : { scaleY: 1 }}
+              transition={blinks ? { duration: 3.4, times: [0, 0.92, 0.96, 1], repeat: Infinity, ease: 'easeInOut' } : undefined}
+            >
+              {/* round glossy eyes */}
+              <circle cx={36} cy={51} r={7.5} fill={WHITE} />
+              <circle cx={64} cy={51} r={7.5} fill={WHITE} />
+              <circle cx={37} cy={52.5} r={4} fill={SCREEN} />
+              <circle cx={65} cy={52.5} r={4} fill={SCREEN} />
+              {/* big + tiny sparkle highlights */}
+              <circle cx={38.6} cy={49.4} r={1.8} fill={WHITE} />
+              <circle cx={66.6} cy={49.4} r={1.8} fill={WHITE} />
+              <circle cx={35} cy={54} r={0.9} fill={WHITE} opacity={0.8} />
+              <circle cx={63} cy={54} r={0.9} fill={WHITE} opacity={0.8} />
+            </motion.g>
           )}
 
-          {/* blinking cursor / mouth */}
-          <motion.rect
-            x={42} y={66} width={20} height={7} rx={1.5} fill={accent}
-            animate={cursorBlinks ? { opacity: [1, 1, 0, 0] } : { opacity: 1 }}
-            transition={cursorBlinks ? { duration: 1.1, repeat: Infinity, ease: 'linear' } : undefined}
-          />
+          {/* mouth */}
+          {state === 'correct' ? (
+            // wide open happy smile
+            <path d="M39 65 Q50 80 61 65 Q50 71 39 65 Z" fill={GREEN} />
+          ) : state === 'wrong' ? (
+            // sad frown :(
+            <path d="M40 72 Q50 62 60 72" fill="none" stroke={RED} strokeWidth={3.4} strokeLinecap="round" />
+          ) : (
+            // simple smile :)
+            <path d="M40 64 Q50 74 60 64" fill="none" stroke={accent} strokeWidth={3.4} strokeLinecap="round" />
+          )}
         </svg>
       </motion.div>
     </div>

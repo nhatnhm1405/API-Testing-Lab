@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { X, Lightbulb } from "lucide-react";
 import { TactileButton } from "./TactileButton";
+import { Emoji } from "../lib/emoji";
 
 interface WhyModalProps {
   isOpen: boolean;
@@ -84,7 +85,7 @@ export function WhyModal({ isOpen, explanation, onClose, onContinue }: WhyModalP
                   background: 'linear-gradient(135deg,#3B82F6,#8B5CF6)',
                   borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <span style={{ fontSize: '18px' }}>💡</span>
+                  <Emoji e="💡" size={18} />
                 </div>
                 <p style={{
                   fontFamily: 'var(--atl-font-body)', fontSize: '13px',

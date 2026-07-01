@@ -9,7 +9,8 @@ import { FillBlankExercise } from "./FillBlank";
 import { DragDropCategorizeExercise } from "./DragDropCategorize";
 import { DragDropOrderExercise } from "./DragDropOrder";
 import { MiniPostman } from "./MiniPostman";
-import { InteractiveExperience } from "./InteractiveExperience";
+import { InteractiveExperience, TestResultPill } from "./InteractiveExperience";
+import { Emoji } from "../lib/emoji";
 import { MODULES, getCorrectAnswer, getHint } from "../data/courseData";
 import { playSound } from "../lib/sound";
 import type { FillBlankData, DragCategorizeData, DragOrderData, PostmanData, InteractiveData } from "../data/courseData";
@@ -196,6 +197,7 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
                 <div style={{ maxWidth:640,margin:'0 auto',display:'flex',alignItems:'center',gap:16 }}>
                   <Mascot state={isCorrect?'correct':'wrong'} size="md" showBubble bubbleText={isCorrect?'Correct! 🎉':revealed?'Here\'s the answer':'Not quite!'}/>
                   <div style={{ flex:1,minWidth:0 }}>
+                    <TestResultPill pass={isCorrect} />
                     <p style={{ fontFamily:'var(--atl-font-display)',fontSize:'17px',fontWeight:800,color:isCorrect?'#15803D':'#BE123C',margin:'0 0 3px' }}>
                       {isCorrect ? 'Correct!' : revealed ? 'The answer' : 'Not quite!'}
                     </p>
@@ -223,7 +225,7 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
                       </>
                     ) : (
                       <p style={{ fontFamily:'var(--atl-font-body)',fontSize:'13px',color:'#9F1239',margin:0,fontWeight:500,lineHeight:1.4 }}>
-                        💡 {hint}
+                        <Emoji e="💡" /> {hint}
                       </p>
                     )}
                   </div>
@@ -266,6 +268,7 @@ export function LessonScreen({ onNavigate, onLessonComplete, onMistake, target, 
             <div style={{ maxWidth:900,margin:'0 auto',display:'flex',alignItems:'center',gap:16 }}>
               <Mascot state="correct" size="md" showBubble bubbleText="Request succeeded! 🎉"/>
               <div style={{ flex:1 }}>
+                <TestResultPill pass={true} />
                 <p style={{ fontFamily:'var(--atl-font-display)',fontSize:'17px',fontWeight:800,color:'#15803D',margin:'0 0 2px' }}>Well done!</p>
                 <p style={{ fontFamily:'var(--atl-font-body)',fontSize:'13px',color:'#166534',margin:0,fontWeight:500 }}>{`+${lesson.xp} XP earned!`}</p>
               </div>

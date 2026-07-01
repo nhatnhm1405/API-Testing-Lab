@@ -122,7 +122,17 @@ export interface InteractiveChoiceCheck extends InteractiveCheckBase {
   options: string[];
   correctIndex: number;
 }
-export type InteractiveCheck = InteractiveConnectCheck | InteractiveChoiceCheck;
+// Predict-&-Run: the learner declares the EXPECTED result for one or more real
+// requests, then runs them and watches PASS/FAIL from expected vs actual — the
+// same muscle a tester uses. Passes only when EVERY prediction matches. This
+// keeps the check hands-on instead of a recall quiz.
+export interface InteractivePredictCheck extends InteractiveCheckBase {
+  mode: 'predict';
+  intro?: string;
+  expectedOptions: string[];
+  rows: Array<{ id: string; request: string; actual: string }>;
+}
+export type InteractiveCheck = InteractiveConnectCheck | InteractiveChoiceCheck | InteractivePredictCheck;
 
 export type LessonData = MCQData | FillBlankData | DragCategorizeData | DragOrderData | PostmanData | InteractiveData;
 
@@ -249,19 +259,16 @@ export const MODULES: Module[] = [
             ],
           },
           check: {
-            mode: 'connect',
-            prompt: 'Drag the acronym to what it really stands for.',
-            source: { id: 'api', label: 'API', emoji: '🔌' },
-            sourceEmptyLabel: 'API = ?',
-            sourceFilledLabel: 'decoded ✓',
-            targets: [
-              { id: 'interface',   label: 'Application Programming Interface' },
-              { id: 'integration', label: 'Advanced Program Integration' },
-              { id: 'process',     label: 'Automated Process Interface' },
+            mode: 'predict',
+            prompt: 'The menu is the interface — it fixes exactly what you can order. Predict how the kitchen answers each order.',
+            intro: 'A prediction passes only when it matches what the kitchen actually does.',
+            expectedOptions: ['✅ On the menu', '❌ Not on the menu'],
+            rows: [
+              { id: 'r1', request: 'ORDER phở',     actual: '✅ On the menu' },
+              { id: 'r2', request: 'ORDER bánh mì', actual: '✅ On the menu' },
+              { id: 'r3', request: 'ORDER pizza',   actual: '❌ Not on the menu' },
             ],
-            correctTargetId: 'interface',
-            reveal: { request: 'API', response: 'Application Programming Interface' },
-            explanation: 'API stands for Application Programming Interface — a set of rules that lets software talk to other software, just like a restaurant menu lets you order without ever entering the kitchen.',
+            explanation: 'An API is exactly this menu — an Application Programming Interface that defines what you may ask for and what comes back. Phở and bánh mì are on the menu, so the kitchen serves them; pizza isn\'t, so the request is refused. That agreed list of valid requests IS the API.',
           },
         },
       },
@@ -291,19 +298,16 @@ export const MODULES: Module[] = [
             ],
           },
           check: {
-            mode: 'connect',
-            prompt: 'Your turn: where must the app go to get the forecast? Drag the request there.',
-            source: { id: 'app', label: 'Weather App', emoji: '📱' },
-            sourceEmptyLabel: '??°',
-            sourceFilledLabel: '28° ☀️',
-            targets: [
-              { id: 'self',    label: 'Collect it itself', sub: 'measure the sky?',     emoji: '🛰️' },
-              { id: 'weather', label: 'Weather Service',    sub: 'api.openweather.org', emoji: '☁️' },
-              { id: 'manual',  label: 'Ask you to type it', sub: 'manual entry',        emoji: '⌨️' },
+            mode: 'predict',
+            prompt: 'The app has no weather of its own — it must ask the service. Predict the forecast each request brings back.',
+            intro: 'Different request (city) → different response (its forecast).',
+            expectedOptions: ['☀️ 28°', '🌧️ 19°', '☁️ 12°'],
+            rows: [
+              { id: 'r1', request: 'GET /forecast?city=Hanoi',  actual: '☀️ 28°' },
+              { id: 'r2', request: 'GET /forecast?city=Tokyo',  actual: '🌧️ 19°' },
+              { id: 'r3', request: 'GET /forecast?city=London', actual: '☁️ 12°' },
             ],
-            correctTargetId: 'weather',
-            reveal: { request: 'GET /forecast?city=Hanoi', response: '{ "temp": 28 }' },
-            explanation: 'The weather app calls an API from a service like OpenWeather. It sends a request, the API returns JSON data, and the app displays it — no self-collection or local storage. That\'s an API call in the wild!',
+            explanation: 'The weather app holds no data itself. Each city name goes out in the request and the matching data comes back in the response — that round-trip is an API call. Change the request and the response changes with it.',
           },
         },
       },
@@ -335,20 +339,17 @@ export const MODULES: Module[] = [
             ],
           },
           check: {
-            mode: 'connect',
-            prompt: 'The app needs to READ a user. Drag the job to the method that does it.',
-            source: { id: 'app', label: 'Read a user', emoji: '📱' },
-            sourceEmptyLabel: '??',
-            sourceFilledLabel: '📄 Mai',
-            targets: [
-              { id: 'post',   label: 'POST',   sub: 'create', emoji: '➕' },
-              { id: 'get',    label: 'GET',    sub: 'read',   emoji: '📄' },
-              { id: 'put',    label: 'PUT',    sub: 'update', emoji: '✏️' },
-              { id: 'delete', label: 'DELETE', sub: 'remove', emoji: '🗑️' },
+            mode: 'predict',
+            prompt: 'Predict what each HTTP method does to the data on the server.',
+            intro: 'Match every method to its action, then run to check.',
+            expectedOptions: ['📄 Read', '➕ Create', '✏️ Update', '🗑️ Delete'],
+            rows: [
+              { id: 'r1', request: 'GET /users/1',    actual: '📄 Read' },
+              { id: 'r2', request: 'POST /users',     actual: '➕ Create' },
+              { id: 'r3', request: 'PUT /users/1',    actual: '✏️ Update' },
+              { id: 'r4', request: 'DELETE /users/1', actual: '🗑️ Delete' },
             ],
-            correctTargetId: 'get',
-            reveal: { request: 'GET /users/1', response: '{ "name": "Mai" }' },
-            explanation: 'GET retrieves (reads) data from the server. POST creates new data, PUT updates it, DELETE removes it. Together these form CRUD: Create, Read, Update, Delete.',
+            explanation: 'GET reads, POST creates, PUT updates, DELETE removes. Together these four actions are CRUD — Create, Read, Update, Delete.',
           },
         },
       },
@@ -380,19 +381,17 @@ export const MODULES: Module[] = [
             ],
           },
           check: {
-            mode: 'connect',
-            prompt: 'Drag the 404 code to what it tells you.',
-            source: { id: 'c404', label: '404', emoji: '❓' },
-            sourceEmptyLabel: 'means…',
-            sourceFilledLabel: 'Not Found',
-            targets: [
-              { id: 'ok', label: 'Success — request processed', sub: '2xx', emoji: '✅' },
-              { id: 'nf', label: 'Not Found — no such resource', sub: '4xx', emoji: '🔍' },
-              { id: 'err', label: 'Server error — server failed', sub: '5xx', emoji: '💥' },
+            mode: 'predict',
+            prompt: 'Predict the status code the server returns for each request.',
+            intro: 'Things that exist come back 200; things that don\'t come back 404.',
+            expectedOptions: ['200 ✅', '404 ❓'],
+            rows: [
+              { id: 'r1', request: 'GET /users/1 · exists',    actual: '200 ✅' },
+              { id: 'r2', request: 'GET /users/999 · missing', actual: '404 ❓' },
+              { id: 'r3', request: 'GET /about · exists',      actual: '200 ✅' },
+              { id: 'r4', request: 'GET /abuot · typo',        actual: '404 ❓' },
             ],
-            correctTargetId: 'nf',
-            reveal: { request: 'GET /users/999', response: '404 Not Found' },
-            explanation: '404 Not Found means the server couldn\'t locate the resource. Families: 2xx = success, 3xx = redirect, 4xx = client error, 5xx = server error.',
+            explanation: '404 Not Found means the server looked but the resource isn\'t there. Existing resources return 200 (success). Families: 2xx success, 3xx redirect, 4xx client error, 5xx server error.',
           },
         },
       },

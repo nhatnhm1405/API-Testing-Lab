@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft, ArrowRight, RotateCcw, CheckCircle2, Hand } from "lucide-react";
 import confetti from "canvas-confetti";
 import { TactileButton } from "./TactileButton";
+import { Emoji, emojify } from "../lib/emoji";
 import {
   Waiter, Chef, Customer, Bowl, Ticket, SteamPuffs, Mood,
   TableProp, Chair, WindowProp, Picture, Lantern,
@@ -24,11 +25,12 @@ interface Order {
   available: boolean;
   cookMs: number;
   patienceMs: number;
+  flaky?: boolean; // the kitchen burns the first attempt → 500, must retry
 }
 
 const ORDERS: Order[] = [
   { dish: 'Beef Phở',        endpoint: 'GET /pho/beef',    available: true,  cookMs: 3000, patienceMs: 26000 },
-  { dish: 'Chicken Phở',     endpoint: 'GET /pho/chicken', available: true,  cookMs: 3400, patienceMs: 23000 },
+  { dish: 'Chicken Phở',     endpoint: 'GET /pho/chicken', available: true,  cookMs: 3000, patienceMs: 24000, flaky: true },
   { dish: 'Wine-stewed Phở', endpoint: 'GET /pho/wine',    available: false, cookMs: 1200, patienceMs: 21000 },
 ];
 
@@ -41,11 +43,11 @@ const MAX_X = 80;
 const NEAR = 14;        // how close counts as "at a station"
 const SPEED = 44;       // % of width per second
 
-type Phase = 'placing' | 'taken' | 'cooking' | 'ready' | 'picked' | 'served' | 'failed' | 'win';
+type Phase = 'placing' | 'taken' | 'cooking' | 'error' | 'ready' | 'picked' | 'served' | 'failed' | 'win';
 type Carry = null | 'ticket' | 'bowl' | 'sorry';
-type Action = null | 'take' | 'give' | 'pickup' | 'serve' | 'apologize';
+type Action = null | 'take' | 'give' | 'pickup' | 'serve' | 'apologize' | 'retry';
 
-const ACTIVE: Phase[] = ['placing', 'taken', 'cooking', 'ready', 'picked'];
+const ACTIVE: Phase[] = ['placing', 'taken', 'cooking', 'error', 'ready', 'picked'];
 
 interface LogEntry { id: number; icon: string; text: string; tag: string | null; tone: string }
 
@@ -58,6 +60,13 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
   const [cook, setCook]     = useState(0);
   const [served, setServed] = useState(0);
   const [seated, setSeated] = useState(false);
+  const [retried, setRetried] = useState(false);
+  // Shift scoring — tips grow with speed & combo; stars rate each serve.
+  const [stars,     setStars]     = useState(0);
+  const [tips,      setTips]      = useState(0);
+  const [combo,     setCombo]     = useState(0);
+  const [bestCombo, setBestCombo] = useState(0);
+  const [lastStars, setLastStars] = useState<number | null>(null);
   const [log, setLog]       = useState<LogEntry[]>([]);
   const [facing, setFacing] = useState<'left' | 'right'>('right');
   const [moving, setMoving] = useState(false);
@@ -87,6 +96,7 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
   } else if (nearKitchen) {
     if (phase === 'taken') action = 'give';
     else if (phase === 'ready') action = 'pickup';
+    else if (phase === 'error') action = 'retry';
   }
 
   const ACTION_LABEL: Record<Exclude<Action, null>, string> = {
@@ -95,6 +105,7 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
     pickup: order.available ? 'Pick up phở' : 'Get reply',
     serve: 'Serve guest',
     apologize: 'Apologize',
+    retry: 'Retry order',
   };
 
   // where the waiter should head next (for the floor target marker)
@@ -102,6 +113,7 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
     phase === 'placing' ? tableX :
     phase === 'taken' ? KITCHEN_X :
     phase === 'ready' ? KITCHEN_X :
+    phase === 'error' ? KITCHEN_X :
     phase === 'picked' ? tableX : null;
 
   // ── interaction ────────────────────────────────────────────────
@@ -127,16 +139,31 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
         else { setCarry('sorry'); pushLog('🙏', 'Carrying the message to the guest', null, RED); }
         setPhase('picked');
         break;
-      case 'serve':
-        setCarry(null); setServed(s => s + 1); setPhase('served');
-        pushLog('✅', 'Served the guest — done!', '200 OK', GREEN);
+      case 'serve': {
+        // Faster serve (more patience left) = more stars & a bigger tip; a live
+        // combo streak rewards keeping every guest happy.
+        const s = patience > .6 ? 3 : patience > .3 ? 2 : 1;
+        const newCombo = combo + 1;
+        const gained = s * 5 + (newCombo - 1) * 3;
+        setStars(v => v + s);
+        setCombo(newCombo);
+        setBestCombo(b => Math.max(b, newCombo));
+        setTips(t => t + gained);
+        setLastStars(s);
+        setCarry(null); setServed(x => x + 1); setPhase('served');
+        pushLog('✅', `Served — ${'⭐'.repeat(s)}  +${gained} tip`, '200 OK', GREEN);
         break;
+      }
       case 'apologize':
         setCarry(null); setPhase('served');
         pushLog('🙇', 'Told the guest & handled the error', '404 Not Found', RED);
         break;
+      case 'retry':
+        setCook(0); setRetried(true); setPhase('cooking');
+        pushLog('🔧', 'Kitchen recovering — re-cooking the order', 'retry request', PURPLE);
+        break;
     }
-  }, [action, order, pushLog]);
+  }, [action, order, pushLog, patience, combo]);
 
   interactRef.current = doInteract;
 
@@ -181,15 +208,18 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
   // ── patience drain ─────────────────────────────────────────────
   useEffect(() => {
     if (!ACTIVE.includes(phase)) return;
+    // Rush hour: each later guest is a little more impatient than the last.
+    const rush = 1 + orderIdx * 0.15;
     const id = setInterval(() => {
-      setPatience(p => Math.max(0, p - 100 / order.patienceMs));
+      setPatience(p => Math.max(0, p - (100 / order.patienceMs) * rush));
     }, 100);
     return () => clearInterval(id);
-  }, [phase, order.patienceMs]);
+  }, [phase, order.patienceMs, orderIdx]);
 
   useEffect(() => {
     if (patience <= 0 && ACTIVE.includes(phase)) {
       setPhase('failed');
+      setCombo(0); // an angry walk-out breaks the streak
       dirRef.current = 0; setMoving(false);
     }
   }, [patience, phase]);
@@ -202,15 +232,20 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
         const nc = c + 100 / order.cookMs;
         if (nc >= 1) {
           clearInterval(id);
-          setPhase('ready');
-          pushLog('🛎️', 'Kitchen done — phở is ready', 'response 200', GREEN);
+          if (order.flaky && !retried) {
+            setPhase('error');
+            pushLog('🔥', 'Kitchen caught fire — the order failed!', '500 Server Error', RED);
+          } else {
+            setPhase('ready');
+            pushLog('🛎️', 'Kitchen done — phở is ready', 'response 200', GREEN);
+          }
           return 1;
         }
         return nc;
       });
     }, 100);
     return () => clearInterval(id);
-  }, [phase, order.cookMs, pushLog]);
+  }, [phase, order.cookMs, order.flaky, retried, pushLog]);
 
   // ── advance after a delivery (let the guest eat & leave) ───────
   useEffect(() => {
@@ -233,6 +268,8 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
     setCook(0);
     setPatience(1);
     setSeated(false);
+    setRetried(false);
+    setLastStars(null);
   };
 
   const retryOrder = () => startOrder(orderIdx);
@@ -240,6 +277,7 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
   const replayAll = () => {
     setLog([]);
     setServed(0);
+    setStars(0); setTips(0); setCombo(0); setBestCombo(0);
     xRef.current = 48; setX(48);
     startOrder(0);
   };
@@ -252,6 +290,7 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
     phase === 'placing' ? '← Go to the guest and take the order' :
     phase === 'taken'   ? 'Carry the ticket to the kitchen →' :
     phase === 'cooking' ? '⏳ Wait for the kitchen…' :
+    phase === 'error'   ? '500! Retry the order at the kitchen →' :
     phase === 'ready'   ? (order.available ? 'Pick up the phở at the kitchen →' : "Get the kitchen's reply →") :
     phase === 'picked'  ? (order.available ? '← Serve the phở to the guest' : '← Tell the guest (sold out)') : '';
 
@@ -267,13 +306,35 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
           </span>
         </div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#FFF7ED', borderRadius: 100, padding: '5px 12px' }}>
-          <span style={{ fontSize: 15 }}>🍜</span>
+          <Emoji e="🍜" size={15} />
           <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '13px', fontWeight: 700, color: '#C2410C' }}>{order.dish}</span>
+        </div>
+
+        {/* tips + combo */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 100, padding: '4px 11px' }}>
+          <Emoji e="🪙" size={14} />
+          <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '13px', fontWeight: 800, color: '#B45309' }}>{tips}</span>
+        </div>
+        {combo >= 2 && (
+          <motion.div key={combo} initial={{ scale: .7 }} animate={{ scale: 1 }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FEF2F2', border: '1.5px solid #FCA5A5', borderRadius: 100, padding: '4px 11px' }}>
+            <Emoji e="🔥" size={14} />
+            <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '13px', fontWeight: 800, color: '#DC2626' }}>x{combo}</span>
+          </motion.div>
+        )}
+
+        {/* guests still waiting this shift */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+          {ORDERS.map((_, i) => (
+            <span key={i} style={{ opacity: i < orderIdx ? .28 : i === orderIdx ? 1 : .6, filter: i < orderIdx ? 'grayscale(1)' : 'none' }}>
+              <Emoji e="🧑" size={i === orderIdx ? 17 : 14} />
+            </span>
+          ))}
         </div>
 
         {/* patience meter */}
         <div style={{ flex: 1, minWidth: 140, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 14 }}>{patience > .35 ? '🙂' : '😣'}</span>
+          <Emoji e={patience > .35 ? '🙂' : '😣'} size={14} />
           <div style={{ flex: 1, height: 9, borderRadius: 100, background: '#F1EEE9', overflow: 'hidden' }}>
             <motion.div
               animate={{ width: `${Math.max(0, patience) * 100}%` }}
@@ -377,7 +438,7 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
             {phase === 'cooking' && (
               <motion.div key="cook" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                 style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)', width: 80, zIndex: 7 }}>
-                <div style={{ textAlign: 'center', fontSize: 12, marginBottom: 3 }}>🔥</div>
+                <div style={{ textAlign: 'center', marginBottom: 3 }}><Emoji e="🔥" size={13} /></div>
                 <div style={{ height: 7, borderRadius: 100, background: 'rgba(255,255,255,.6)', overflow: 'hidden' }}>
                   <div style={{ width: `${cook * 100}%`, height: '100%', background: 'linear-gradient(90deg,#F59E0B,#22C55E)', borderRadius: 100, transition: 'width .1s linear' }} />
                 </div>
@@ -397,7 +458,13 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
             {phase === 'ready' && !order.available && (
               <motion.div key="oos" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)', zIndex: 7 }}>
-                <SpeechBubble tone={RED}>We're sold out! 🚫</SpeechBubble>
+                <SpeechBubble tone={RED}>We're sold out! <Emoji e="🚫" /></SpeechBubble>
+              </motion.div>
+            )}
+            {phase === 'error' && (
+              <motion.div key="err" initial={{ opacity: 0, scale: .8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                style={{ position: 'absolute', bottom: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)', zIndex: 7 }}>
+                <SpeechBubble tone={RED}>Fire! 500 error <Emoji e="🔥" /></SpeechBubble>
               </motion.div>
             )}
           </AnimatePresence>
@@ -416,7 +483,7 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
                   style={{ position: 'relative', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.2))' }}>
                   {carry === 'ticket' && <Ticket scale={2.5} />}
                   {carry === 'bowl' && <Bowl scale={2.5} steam />}
-                  {carry === 'sorry' && <span style={{ fontSize: 18 }}>🙏</span>}
+                  {carry === 'sorry' && <Emoji e="🙏" size={18} />}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -438,12 +505,27 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
           </AnimatePresence>
         </motion.div>
 
+        {/* serve star rating popup */}
+        <AnimatePresence>
+          {phase === 'served' && order.available && lastStars != null && (
+            <motion.div key={`stars-${round}`}
+              initial={{ opacity: 0, y: 10, scale: .8 }} animate={{ opacity: 1, y: -6, scale: 1 }} exit={{ opacity: 0, y: -16 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 20 }}
+              style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 9, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,.95)', border: '1.5px solid #FDE68A', borderRadius: 100, padding: '5px 14px', boxShadow: '0 8px 20px rgba(180,83,9,.22)' }}>
+              {Array.from({ length: lastStars }).map((_, i) => <Emoji key={i} e="⭐" size={16} />)}
+              <span style={{ fontFamily: 'var(--atl-font-display)', fontSize: '13px', fontWeight: 800, color: '#B45309' }}>
+                {lastStars === 3 ? 'Perfect serve!' : lastStars === 2 ? 'Nice & quick!' : 'Served!'}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* failed overlay */}
         <AnimatePresence>
           {phase === 'failed' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               style={{ position: 'absolute', inset: 0, background: 'rgba(28,27,42,.55)', backdropFilter: 'blur(2px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, zIndex: 10, padding: 20, textAlign: 'center' }}>
-              <span style={{ fontSize: 40 }}>😞</span>
+              <Emoji e="😞" size={40} />
               <p style={{ fontFamily: 'var(--atl-font-display)', fontSize: '17px', fontWeight: 800, color: '#FFF', margin: 0 }}>The guest got tired of waiting!</p>
               <TactileButton variant="primary" size="sm" onClick={retryOrder} icon={<RotateCcw size={14} />}>Retry this order</TactileButton>
             </motion.div>
@@ -481,8 +563,8 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
             <motion.div key={lastLog.id}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: .25 }}
               style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 18 }}>{lastLog.icon}</span>
-              <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '13px', fontWeight: 600, color: '#1C1B2A', flex: 1 }}>{lastLog.text}</span>
+              <Emoji e={lastLog.icon} size={18} />
+              <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '13px', fontWeight: 600, color: '#1C1B2A', flex: 1 }}>{emojify(lastLog.text)}</span>
               {lastLog.tag && (
                 <code style={{ fontFamily: 'monospace', fontSize: '11.5px', fontWeight: 700, color: lastLog.tone, background: `${lastLog.tone}14`, borderRadius: 6, padding: '3px 9px', whiteSpace: 'nowrap' }}>{lastLog.tag}</code>
               )}
@@ -495,14 +577,22 @@ export function PhoWaiterGame({ onContinue }: { onContinue?: () => void }) {
       <AnimatePresence>
         {phase === 'win' && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4 }}
-            style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: '#ECFDF3', border: '1.5px solid #BBF7D0', borderRadius: 14, flexWrap: 'wrap' }}>
-            <CheckCircle2 size={22} color="#22C55E" style={{ flexShrink: 0 }} />
-            <p style={{ flex: 1, minWidth: 200, fontFamily: 'var(--atl-font-body)', fontSize: '13px', fontWeight: 600, color: '#15803D', margin: 0, lineHeight: 1.45 }}>
-              Shift complete! Each order was a full <b>client → API → server → response</b> round-trip.
-            </p>
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-              <TactileButton variant="ghost" size="sm" onClick={replayAll} icon={<RotateCcw size={14} />}>Replay</TactileButton>
-              {onContinue && <TactileButton variant="continue" size="sm" onClick={onContinue}>Continue →</TactileButton>}
+            style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12, padding: '14px 16px', background: '#ECFDF3', border: '1.5px solid #BBF7D0', borderRadius: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <CheckCircle2 size={22} color="#22C55E" style={{ flexShrink: 0 }} />
+              <p style={{ flex: 1, minWidth: 200, fontFamily: 'var(--atl-font-body)', fontSize: '13px', fontWeight: 600, color: '#15803D', margin: 0, lineHeight: 1.45 }}>
+                Shift complete! Each order was a full <b>client → API → server → response</b> round-trip.
+              </p>
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                <TactileButton variant="ghost" size="sm" onClick={replayAll} icon={<RotateCcw size={14} />}>Replay</TactileButton>
+                {onContinue && <TactileButton variant="continue" size="sm" onClick={onContinue}>Continue →</TactileButton>}
+              </div>
+            </div>
+            {/* shift scorecard */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <ScorePill emoji="⭐" label="Stars" value={`${stars}/${ORDERS.filter(o => o.available).length * 3}`} />
+              <ScorePill emoji="🪙" label="Tips" value={`${tips}`} />
+              <ScorePill emoji="🔥" label="Best combo" value={`x${bestCombo}`} />
             </div>
           </motion.div>
         )}
@@ -557,14 +647,25 @@ function CustomerActor({ round, phase, doorX, tableX, dish, available, seated, o
       {/* speech (only once seated) */}
       <div style={{ position: 'absolute', bottom: 'calc(100% + 2px)', left: '50%', transform: 'translateX(-50%)' }}>
         <AnimatePresence mode="wait">
-          {seated && phase === 'placing' && <SpeechBubble key="ask" tone={BLUE}>One {dish}, please! 🙌</SpeechBubble>}
-          {mode === 'eat' && <SpeechBubble key="yum" tone={GREEN}>Thank you! 😋</SpeechBubble>}
-          {phase === 'served' && !available && <SpeechBubble key="sad" tone={RED}>Aw, what a pity… 🙁</SpeechBubble>}
+          {seated && phase === 'placing' && <SpeechBubble key="ask" tone={BLUE}>One {dish}, please! <Emoji e="🙌" /></SpeechBubble>}
+          {mode === 'eat' && <SpeechBubble key="yum" tone={GREEN}>Thank you! <Emoji e="😋" /></SpeechBubble>}
+          {phase === 'served' && !available && <SpeechBubble key="sad" tone={RED}>Aw, what a pity… <Emoji e="🙁" /></SpeechBubble>}
         </AnimatePresence>
       </div>
       <Customer scale={4} mood={mood} moving={walking} sit={sit} flip={facing === 'left'} />
       {!walking && <Label title="Guest" sub="Client" color={BLUE} />}
     </motion.div>
+  );
+}
+
+// ── a compact scorecard stat (shift summary) ───────────────────────
+function ScorePill({ emoji, label, value }: { emoji: string; label: string; value: string }) {
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#FFF', border: '1.5px solid #BBF7D0', borderRadius: 100, padding: '5px 12px' }}>
+      <Emoji e={emoji} size={15} />
+      <span style={{ fontFamily: 'var(--atl-font-body)', fontSize: '12px', fontWeight: 600, color: '#15803D' }}>{label}</span>
+      <span style={{ fontFamily: 'var(--atl-font-display)', fontSize: '13px', fontWeight: 800, color: '#166534' }}>{value}</span>
+    </div>
   );
 }
 

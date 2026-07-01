@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { CheckCircle2, Play, ChevronLeft, ArrowRight, RotateCcw, Target } from "lucide-react";
 import { Mascot } from "./Mascot";
+import { emojify } from "../lib/emoji";
 import { useIsMobile } from "./ui/use-mobile";
 import { MODULES } from "../data/courseData";
 
@@ -87,7 +88,7 @@ export function LearningPath({ onNavigate, onOpenLesson, completedLessons, onRes
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .4, delay: .15 }}
       style={{ background: 'var(--atl-surface)', borderRadius: 22, border: '1.5px solid var(--atl-hairline)', boxShadow: '0 2px 8px rgba(28,27,42,.06), 0 18px 44px rgba(28,27,42,.12)', padding: 22 }}>
       <div style={{ fontFamily: 'var(--atl-font-body)', fontSize: '11px', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--atl-ink-faint)', marginBottom: 4 }}>
-        {moduleDone ? 'Module complete 🎉' : doneCount > 0 ? 'Up next' : 'Begin'}
+        {emojify(moduleDone ? 'Module complete 🎉' : doneCount > 0 ? 'Up next' : 'Begin')}
       </div>
       <h3 style={{ fontFamily: 'var(--atl-font-display)', fontSize: '20px', fontWeight: 800, color: 'var(--atl-ink)', margin: '0 0 16px', letterSpacing: '-0.02em' }}>
         {mod.lessons[nextIdx].title}

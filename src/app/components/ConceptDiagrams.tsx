@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronLeft, ArrowRight, RotateCcw } from "lucide-react";
+import { Emoji } from "../lib/emoji";
 import { PhoWaiterGame } from "./PhoWaiterGame";
 import { ApiStoryFlow } from "./ApiStoryFlow";
 import { APISimulator } from "./APISimulator";
@@ -41,7 +42,7 @@ function RequestResponseDiagram() {
           {/* Client */}
           <div style={{ flex:1,background:'#FFF',borderRadius:16,padding:16,border:'2px solid #BFDBFE',boxShadow:'0 2px 12px rgba(59,130,246,.1)',textAlign:'center' }}>
             <div style={{ width:44,height:44,margin:'0 auto 10px',background:'linear-gradient(135deg,#3B82F6,#60A5FA)',borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 12px rgba(59,130,246,.3)' }}>
-              <span style={{ fontSize:22 }}>💻</span>
+              <Emoji e="💻" size={22} />
             </div>
             <span style={{ fontFamily:'var(--atl-font-display)',fontSize:'16px',fontWeight:800,color:'#1E40AF',display:'block' }}>Client</span>
             <span style={{ fontFamily:'var(--atl-font-body)',fontSize:'11px',fontWeight:500,color:'#60A5FA' }}>Browser / App</span>
@@ -72,7 +73,7 @@ function RequestResponseDiagram() {
           {/* Server */}
           <div style={{ flex:1,background:'#FFF',borderRadius:16,padding:16,border:'2px solid #A7F3D0',boxShadow:'0 2px 12px rgba(16,185,129,.1)',textAlign:'center' }}>
             <div style={{ width:44,height:44,margin:'0 auto 10px',background:'linear-gradient(135deg,#10B981,#34D399)',borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 12px rgba(16,185,129,.3)' }}>
-              <span style={{ fontSize:22 }}>🖥️</span>
+              <Emoji e="🖥️" size={22} />
             </div>
             <span style={{ fontFamily:'var(--atl-font-display)',fontSize:'16px',fontWeight:800,color:'#065F46',display:'block' }}>Server</span>
             <span style={{ fontFamily:'var(--atl-font-body)',fontSize:'11px',fontWeight:500,color:'#34D399' }}>API Backend</span>
@@ -162,38 +163,37 @@ type Stage = 'intro' | 'play' | 'transition' | 'api' | 'welcome' | 'lab' | 'reca
 function Cinematic({ emoji, title, subtitle, tone, onDone }: {
   emoji: string; title: string; subtitle?: string; tone: string; onDone: () => void;
 }) {
-  useEffect(() => {
-    const t = setTimeout(onDone, 3800);
-    return () => clearTimeout(t);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const fade = { duration: 3.8, times: [0, .16, .78, 1], ease: 'easeInOut' as const };
+  // Learner-paced: the scene settles and waits on an explicit "Next" button
+  // (no auto-advance), so nobody is rushed through the story beat.
+  const enter = { duration: .5, ease: 'easeOut' as const };
 
   return (
     <motion.div
       key="cine"
-      onClick={onDone}
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .3 }}
-      style={{ minHeight: '62vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', cursor: 'pointer', padding: 24 }}
+      style={{ minHeight: '62vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24 }}
     >
-      <motion.div initial={{ scale: .5, opacity: 0 }} animate={{ scale: [.5, 1, 1, .92], opacity: [0, 1, 1, 0] }} transition={fade}
-        style={{ fontSize: 'clamp(48px, 9vw, 72px)', marginBottom: 14, lineHeight: 1 }}>
-        {emoji}
+      <motion.div initial={{ scale: .5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={enter}
+        style={{ marginBottom: 14, lineHeight: 1 }} aria-hidden="true">
+        <Emoji e={emoji} size="clamp(48px, 9vw, 72px)" />
       </motion.div>
-      <motion.h1 initial={{ y: 26, opacity: 0 }} animate={{ y: [26, 0, 0, -14], opacity: [0, 1, 1, 0] }} transition={fade}
+      <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ ...enter, delay: .1 }}
         style={{ fontFamily: 'var(--atl-font-display)', fontSize: 'clamp(28px, 5vw, 44px)', fontWeight: 800, color: '#1C1B2A', letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0, maxWidth: 640 }}>
         {title}
       </motion.h1>
       {subtitle && (
-        <motion.p initial={{ y: 18, opacity: 0 }} animate={{ y: [18, 0, 0, -8], opacity: [0, 1, 1, 0] }} transition={{ ...fade, times: [0, .24, .78, 1] }}
+        <motion.p initial={{ y: 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ ...enter, delay: .2 }}
           style={{ fontFamily: 'var(--atl-font-body)', fontSize: 'clamp(15px, 2.4vw, 18px)', color: tone, fontWeight: 600, margin: '18px 0 0', maxWidth: 520, lineHeight: 1.5 }}>
           {subtitle}
         </motion.p>
       )}
-      <motion.span initial={{ opacity: 0 }} animate={{ opacity: [0, 0, .55] }} transition={{ duration: 3.8, times: [0, .82, 1] }}
-        style={{ marginTop: 30, fontFamily: 'var(--atl-font-body)', fontSize: '12px', color: '#A7A3AD', fontWeight: 600 }}>
-        tap to skip →
-      </motion.span>
+      <motion.button
+        onClick={onDone}
+        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ ...enter, delay: .38 }}
+        whileHover={{ y: -2 }} whileTap={{ scale: .97 }}
+        style={{ marginTop: 34, display: 'inline-flex', alignItems: 'center', gap: 8, background: tone, color: '#fff', border: 'none', borderRadius: 14, padding: '13px 26px', cursor: 'pointer', fontFamily: 'var(--atl-font-body)', fontSize: '15px', fontWeight: 800, boxShadow: `0 6px 18px ${tone}55, inset 0 1px 0 rgba(255,255,255,.25)` }}>
+        Next <ArrowRight size={18}/>
+      </motion.button>
     </motion.div>
   );
 }
@@ -227,7 +227,8 @@ export function ConceptDiagrams({ onNavigate, onEnterCourse }: ConceptDiagramsPr
         <AnimatePresence mode="wait">
           {stage === 'intro' && (
             <Cinematic key="intro" emoji="🍜"
-              title="The Phở Protocol"
+              title="Order Phở, Learn the Protocol"
+              subtitle="See how one request works — by ordering a bowl of phở."
               tone="#C2410C" onDone={() => setStage('play')} />
           )}
 
@@ -270,7 +271,7 @@ export function ConceptDiagrams({ onNavigate, onEnterCourse }: ConceptDiagramsPr
               <div style={{ display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap' }}>
                 <button onClick={() => setStage('recap')}
                   style={{ display:'inline-flex',alignItems:'center',gap:8,background:'#FFF',border:'1.5px solid #ECE8E1',borderRadius:'100px',padding:'10px 18px',cursor:'pointer',fontFamily:'var(--atl-font-body)',fontSize:'13px',fontWeight:700,color:'#6B6A7B',boxShadow:'0 1px 4px rgba(28,27,42,.06)' }}>
-                  📋 Request anatomy reference
+                  <Emoji e="📋" /> Request anatomy reference
                 </button>
                 <button onClick={() => setStage('play')}
                   style={{ display:'inline-flex',alignItems:'center',gap:8,background:'#FFF',border:'1.5px solid #ECE8E1',borderRadius:'100px',padding:'10px 18px',cursor:'pointer',fontFamily:'var(--atl-font-body)',fontSize:'13px',fontWeight:700,color:'#6B6A7B',boxShadow:'0 1px 4px rgba(28,27,42,.06)' }}>

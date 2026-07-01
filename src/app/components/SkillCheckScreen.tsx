@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { CheckCircle2 } from "lucide-react";
 import { TactileButton } from "./TactileButton";
+import { Emoji } from "../lib/emoji";
 import { Mascot } from "./Mascot";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams';
@@ -45,7 +46,7 @@ export function SkillCheckScreen({ onNavigate, onNextModule, moduleNumber, modul
         {/* Text */}
         <motion.div initial={{ opacity:0,y:16 }} animate={{ opacity:1,y:0 }} transition={{ duration:.4,delay:.55 }} style={{ textAlign:'center' }}>
           <div style={{ display:'inline-flex',alignItems:'center',gap:6,background:'linear-gradient(135deg,#EEF2FF,#F5F3FF)',border:'1.5px solid #C7D2FE',borderRadius:'100px',padding:'5px 14px',marginBottom:16 }}>
-            <span style={{ fontSize:12 }}>✨</span>
+            <Emoji e="✨" size={12} />
             <span style={{ fontFamily:'var(--atl-font-body)',fontSize:'12px',fontWeight:700,color:'#3730A3',letterSpacing:'.06em',textTransform:'uppercase' }}>Skill Check</span>
           </div>
           <h1 style={{ fontFamily:'var(--atl-font-display)',fontSize:'28px',fontWeight:800,color:'#1C1B2A',margin:'0 0 12px',letterSpacing:'-0.03em',lineHeight:1.2 }}>

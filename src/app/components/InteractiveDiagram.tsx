@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Check, X } from "lucide-react";
+import { emojify } from "../lib/emoji";
 import confetti from "canvas-confetti";
 import { useIsMobile } from "./ui/use-mobile";
 import { playSound } from "../lib/sound";
@@ -181,7 +182,7 @@ export function ConnectExercise({
         {prompt}
       </p>
       <p style={{ fontFamily:'var(--atl-font-body)', fontSize:'12.5px', fontWeight:600, color:'#A7A3AD', margin:'0 0 20px' }}>
-        {isAnswering ? 'Drag the plug from the app — or tap a destination.' : isCorrect ? 'That request is an API call. ✨' : 'Follow the wire to the right source.'}
+        {emojify(isAnswering ? 'Drag the plug from the app — or tap a destination.' : isCorrect ? 'That request is an API call. ✨' : 'Follow the wire to the right source.')}
       </p>
 
       <div

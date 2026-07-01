@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowRight, Sparkles, Lightbulb, Check, X } from "lucide-react";
+import { ArrowRight, Sparkles, Lightbulb, Check, X, MousePointerClick } from "lucide-react";
 import { TactileButton } from "./TactileButton";
 import { Mascot } from "./Mascot";
 import { OptionCard, OptionState } from "./OptionCard";
+import { Emoji, emojify } from "../lib/emoji";
+import { GuidedTour, type TourStep } from "./GuidedTour";
 import { ConnectExercise } from "./InteractiveDiagram";
 import { useIsMobile } from "./ui/use-mobile";
 import { playSound } from "../lib/sound";
@@ -23,6 +25,21 @@ type Phase = 'answering' | 'correct' | 'wrong';
 const BRAND = '#2E5BFF';
 const STEP_LABELS = ['Experience', 'Concept', 'Check'];
 
+// First-time coachmark for the Predict-&-Run check — spotlights the rows and the
+// Check button so a newcomer knows this is a "pick what you expect, then run" task.
+const PREDICT_COACH_KEY = 'atl-predict-coach-seen';
+const predictCoachSeen = () => {
+  try { return typeof localStorage !== 'undefined' && localStorage.getItem(PREDICT_COACH_KEY) === '1'; }
+  catch { return false; }
+};
+const markPredictCoachSeen = () => {
+  try { localStorage.setItem(PREDICT_COACH_KEY, '1'); } catch { /* storage unavailable — ignore */ }
+};
+const PREDICT_COACH: TourStep[] = [
+  { anchor: 'predict-rows',  title: 'Pick what you expect', body: 'For each request, tap the result you think comes back. Do this for every row.' },
+  { anchor: 'predict-check', title: 'Run the test',         body: 'Once every row has a pick, press Check to run them — you’ll see PASS or FAIL for each.' },
+];
+
 export function InteractiveExperience({ data, xp, accent, onMistake, onComplete }: Props) {
   const [step, setStep] = useState<Step>(0);
 
@@ -38,6 +55,17 @@ export function InteractiveExperience({ data, xp, accent, onMistake, onComplete 
   const [wrongCount,   setWrongCount]   = useState(0);
   const [attempt,      setAttempt]      = useState(0);
   const [revealed,     setRevealed]     = useState(false);
+
+  // First-visit coachmark over the predict check.
+  const isPredict = data.check.mode === 'predict';
+  const [coach, setCoach] = useState(false);
+  useEffect(() => {
+    if (step === 2 && isPredict && !predictCoachSeen()) {
+      const t = setTimeout(() => setCoach(true), 350); // let the check mount first
+      return () => clearTimeout(t);
+    }
+  }, [step, isPredict]);
+  const finishCoach = () => { markPredictCoachSeen(); setCoach(false); };
 
   const isCorrect = phase === 'correct';
   const isWrong   = phase === 'wrong';
@@ -57,6 +85,8 @@ export function InteractiveExperience({ data, xp, accent, onMistake, onComplete 
 
   const checkHint  = data.check.mode === 'connect'
     ? 'Trace the wire — match the job to the method that performs it.'
+    : data.check.mode === 'predict'
+    ? 'Re-check each prediction — your expected must match what the server actually returns.'
     : 'Re-read the statements and pick the one that matches the concept.';
 
   return (
@@ -127,6 +157,20 @@ export function InteractiveExperience({ data, xp, accent, onMistake, onComplete 
                   phase={phase}
                   revealed={revealed}
                 />
+              ) : data.check.mode === 'predict' ? (
+                <PredictCheck
+                  key={attempt}
+                  prompt={data.check.prompt}
+                  intro={data.check.intro}
+                  expectedOptions={data.check.expectedOptions}
+                  rows={data.check.rows}
+                  accent={accent}
+                  checkTrigger={checkTrigger}
+                  onReadyChange={setReady}
+                  onResult={handleCheckResult}
+                  phase={phase}
+                  revealed={revealed}
+                />
               ) : (
                 <ChoiceCheck
                   key={attempt}
@@ -181,11 +225,12 @@ export function InteractiveExperience({ data, xp, accent, onMistake, onComplete 
             <div style={{ maxWidth:640, margin:'0 auto', display:'flex', alignItems:'center', gap:16 }}>
               <Mascot state={isCorrect?'correct':'wrong'} size="md" showBubble bubbleText={isCorrect?'Correct! 🎉':revealed?'Here\'s the answer':'Not quite!'}/>
               <div style={{ flex:1, minWidth:0 }}>
+                <TestResultPill pass={isCorrect} />
                 <p style={{ fontFamily:'var(--atl-font-display)', fontSize:'17px', fontWeight:800, color:isCorrect?'#15803D':'#BE123C', margin:'0 0 3px' }}>
                   {isCorrect ? 'Correct!' : revealed ? 'The answer' : 'Not quite!'}
                 </p>
                 <p style={{ fontFamily:'var(--atl-font-body)', fontSize:'13px', color:isCorrect?'#166534':'#9F1239', margin:0, fontWeight:500, lineHeight:1.4 }}>
-                  {isCorrect ? `+${xp} XP earned!` : revealed ? 'See what it means below, then continue.' : `💡 ${checkHint}`}
+                  {isCorrect ? `+${xp} XP earned!` : revealed ? 'See what it means below, then continue.' : emojify(`💡 ${checkHint}`)}
                 </p>
               </div>
               {isCorrect || revealed ? (
@@ -223,7 +268,7 @@ export function InteractiveExperience({ data, xp, accent, onMistake, onComplete 
                 </TactileButton>
               )}
               {step === 2 && (
-                <div style={{ flex:1 }}>
+                <div data-tour="predict-check" style={{ flex:1 }}>
                   <TactileButton variant={ready ? 'check' : 'disabled'} disabled={!ready} fullWidth onClick={goCheck}>
                     Check
                   </TactileButton>
@@ -233,7 +278,26 @@ export function InteractiveExperience({ data, xp, accent, onMistake, onComplete 
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* First-time coachmark spotlighting the predict rows, then the Check button */}
+      <GuidedTour steps={PREDICT_COACH} run={coach} onFinish={finishCoach} />
     </>
+  );
+}
+
+// A tiny PASS/FAIL stamp — frames every checked answer as a test result, so the
+// "API Testing" idea runs through the whole course, not just the Lab.
+export function TestResultPill({ pass }: { pass: boolean }) {
+  return (
+    <span style={{
+      display:'inline-flex', alignItems:'center', gap:5, marginBottom:5,
+      background: pass ? '#DCFCE7' : '#FEE2E2', border:`1.5px solid ${pass ? '#86EFAC' : '#FCA5A5'}`,
+      borderRadius:100, padding:'2px 9px',
+      fontFamily:'var(--atl-font-mono, ui-monospace, monospace)', fontSize:'10.5px', fontWeight:800,
+      letterSpacing:'.03em', color: pass ? '#15803D' : '#B91C1C',
+    }}>
+      {pass ? '✓ TEST PASSED' : '✗ TEST FAILED'}
+    </span>
   );
 }
 
@@ -282,7 +346,7 @@ function ExploreScene({ ex, accent, onTried }: { ex: InteractiveData['explore'];
           <div style={{
             marginTop:6, fontFamily:'var(--atl-font-display)', fontWeight:800, fontSize:'16px',
             color: display === ex.emptyDisplay ? '#C4C0CA' : TONE[displayTone].text, transition:'color .3s', minHeight:22,
-          }}>{display}</div>
+          }}>{emojify(display)}</div>
         </NodeBox>
 
         {/* Wire */}
@@ -325,9 +389,15 @@ function ExploreScene({ ex, accent, onTried }: { ex: InteractiveData['explore'];
 
       {/* Query chips */}
       <div style={{ marginTop:22 }}>
-        <p style={{ fontFamily:'var(--atl-font-body)', fontSize:'11px', fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', color:'#A7A3AD', marginBottom:10 }}>
-          Tap to try
-        </p>
+        <motion.div
+          animate={picked === null ? { scale:[1, 1.05, 1] } : { scale:1 }}
+          transition={picked === null ? { duration:1.6, repeat:Infinity, ease:'easeInOut' } : { duration:.2 }}
+          style={{ display:'inline-flex', alignItems:'center', gap:6, background:`${accent}16`, border:`1.5px solid ${accent}40`, borderRadius:100, padding:'5px 12px', marginBottom:12, transformOrigin:'left center' }}>
+          <MousePointerClick size={14} color={accent} strokeWidth={2.5} />
+          <span style={{ fontFamily:'var(--atl-font-body)', fontSize:'12px', fontWeight:800, textTransform:'uppercase', letterSpacing:'.06em', color:accent }}>
+            Tap to try
+          </span>
+        </motion.div>
         <div style={{ display:'flex', flexWrap:'wrap', gap:9 }}>
           {queries.map(q => {
             const isPicked = picked === q.id;
@@ -345,7 +415,7 @@ function ExploreScene({ ex, accent, onTried }: { ex: InteractiveData['explore'];
                   opacity: busy && !isPicked ? .55 : 1,
                   transition:'background .15s, border-color .15s, opacity .15s',
                 }}>
-                {q.label}
+                {emojify(q.label)}
                 {isPicked && travel === 'done' && <Sparkles size={13} color={accent}/>}
               </motion.button>
             );
@@ -369,7 +439,7 @@ function NodeBox({ emoji, label, sub, children, glow, glowColor, glowShadow, pul
         boxShadow: glow ? `0 0 22px ${gs}` : '0 4px 14px rgba(28,27,42,.07)',
         transition:'border-color .25s, box-shadow .25s',
       }}>
-      <div style={{ fontSize:28, lineHeight:1 }}>{emoji}</div>
+      <div style={{ lineHeight:1 }}><Emoji e={emoji} size={28} /></div>
       <div style={{ fontFamily:'var(--atl-font-body)', fontSize:'11.5px', fontWeight:700, color:'#1C1B2A', marginTop:5, lineHeight:1.2 }}>{label}</div>
       {sub && <div style={{ fontFamily:'var(--atl-font-body)', fontSize:'9.5px', fontWeight:500, color:'#A7A3AD', marginTop:2 }}>{sub}</div>}
       {children}
@@ -480,7 +550,7 @@ function PredictScene({ predict, ex, accent, onTried }: {
                           color: sel ? accent : '#6B6A7B',
                           opacity: isRun && !sel ? .45 : 1,
                           transition:'background .15s, border-color .15s',
-                        }}>{opt}</button>
+                        }}>{emojify(opt)}</button>
                     );
                   })}
                 </div>
@@ -505,7 +575,7 @@ function PredictScene({ predict, ex, accent, onTried }: {
                 {isRun && (
                   <motion.div initial={{ opacity:0, height:0, marginTop:0 }} animate={{ opacity:1, height:'auto', marginTop:9 }} transition={{ duration:.25 }} style={{ overflow:'hidden' }}>
                     <span style={{ fontFamily:'var(--atl-font-mono, ui-monospace, monospace)', fontSize:'12px', fontWeight:700, color:'#6B6A7B' }}>
-                      Actual: <span style={{ color: pass ? '#15803D' : '#DC2626' }}>{r.actual}</span>
+                      Actual: <span style={{ color: pass ? '#15803D' : '#DC2626' }}>{emojify(r.actual)}</span>
                       {'  ·  '}expected {exp} {pass ? '=' : '≠'} actual
                     </span>
                   </motion.div>
@@ -558,9 +628,126 @@ function ChoiceCheck({ prompt, options, correctIndex, checkTrigger, onReadyChang
           <OptionCard key={i} index={i} state={optState(i)}
             onClick={() => { if (isAnswering) { playSound('select'); setSelected(i); } }}
             disabled={!isAnswering}>
-            {opt}
+            {emojify(opt)}
           </OptionCard>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ── CHECK (predict): declare the expected result, then run & verify PASS/FAIL ──
+// The learner sets an expectation for every request, hits "Check" to run them all,
+// and sees the actual response with a PASS/FAIL stamp per row. Passes only when
+// every prediction matches — a hands-on test, not a recall quiz.
+type PredTone = 'right' | 'wrong' | 'sel' | 'idle';
+const PRED_TONE: Record<PredTone, { bg: string; bd: string; fg: string }> = {
+  right: { bg:'#DCFCE7',   bd:'#86EFAC', fg:'#15803D' },
+  wrong: { bg:'#FEE2E2',   bd:'#FCA5A5', fg:'#B91C1C' },
+  sel:   { bg:'transparent', bd:'', fg:'' }, // filled in per-render (needs accent)
+  idle:  { bg:'#FFF',      bd:'#ECE8E1', fg:'#6B6A7B' },
+};
+
+function PredictCheck({ prompt, expectedOptions, rows, accent, checkTrigger, onReadyChange, onResult, phase, revealed = false }: {
+  prompt: string;
+  intro?: string;
+  expectedOptions: string[];
+  rows: Array<{ id: string; request: string; actual: string }>;
+  accent: string;
+  checkTrigger: number;
+  onReadyChange: (ready: boolean) => void;
+  onResult: (correct: boolean) => void;
+  phase: Phase;
+  revealed?: boolean;
+}) {
+  const [expected, setExpected] = useState<Record<string, string | null>>(
+    () => Object.fromEntries(rows.map(r => [r.id, null]))
+  );
+  const isAnswering = phase === 'answering' && checkTrigger === 0;
+  // Actuals + PASS/FAIL only appear once the learner runs the check (or reveals).
+  const showResult  = phase !== 'answering' || revealed;
+  const allReady    = rows.every(r => expected[r.id] !== null);
+
+  useEffect(() => { onReadyChange(allReady); }, [allReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (checkTrigger === 0) return;
+    onResult(rows.every(r => expected[r.id] === r.actual));
+  }, [checkTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const choose = (rowId: string, opt: string) => {
+    if (!isAnswering) return;
+    playSound('select');
+    setExpected(prev => ({ ...prev, [rowId]: opt }));
+  };
+
+  return (
+    <div>
+      <p style={{ fontFamily:'var(--atl-font-display)', fontSize:'19px', fontWeight:800, color:'#1C1B2A', margin:'0 0 14px', lineHeight:1.35, letterSpacing:'-0.01em' }}>
+        {prompt}
+      </p>
+
+      <div data-tour="predict-rows" style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        {rows.map(r => {
+          const exp  = expected[r.id];
+          const pass = exp === r.actual;
+          return (
+            <div key={r.id} style={{
+              border:`1.5px solid ${showResult ? (pass ? '#BBF7D0' : '#FECDD3') : (exp ? `${accent}55` : '#ECE8E1')}`,
+              borderRadius:16, padding:'12px 14px',
+              background: showResult ? (pass ? '#F0FDF4' : '#FFF5F6') : '#FFF',
+              transition:'background .2s, border-color .2s',
+            }}>
+              {/* line 1 — the request + (after run) its PASS/FAIL */}
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:9 }}>
+                <span style={{ fontFamily:'var(--atl-font-mono, ui-monospace, monospace)', fontSize:'12.5px', fontWeight:700, color:'#1C1B2A', background:'#F2EFEA', padding:'4px 9px', borderRadius:7 }}>
+                  {r.request}
+                </span>
+                {showResult && (
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontFamily:'var(--atl-font-body)', fontSize:'13px', fontWeight:800, color: pass ? '#15803D' : '#BE123C' }}>
+                    {pass ? <Check size={15} strokeWidth={3}/> : <X size={15} strokeWidth={3}/>}
+                    {pass ? 'PASS' : 'FAIL'}
+                  </span>
+                )}
+              </div>
+
+              {/* line 2 — the expectation chips */}
+              <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginTop:10 }}>
+                {expectedOptions.map(opt => {
+                  const sel  = exp === opt;
+                  // After running: green the true answer, red a wrong pick.
+                  const tone: PredTone = showResult
+                    ? (opt === r.actual ? 'right' : sel ? 'wrong' : 'idle')
+                    : (sel ? 'sel' : 'idle');
+                  const c = tone === 'sel'
+                    ? { bg:`${accent}14`, bd:accent, fg:accent }
+                    : PRED_TONE[tone];
+                  return (
+                    <button key={opt} onClick={() => choose(r.id, opt)} disabled={!isAnswering}
+                      style={{
+                        padding:'6px 12px', borderRadius:100,
+                        fontFamily:'var(--atl-font-body)', fontSize:'12.5px', fontWeight:700,
+                        cursor: isAnswering ? 'pointer' : 'default',
+                        background: c.bg, border:`1.5px solid ${c.bd}`, color: c.fg,
+                        opacity: showResult && tone === 'idle' ? .5 : 1,
+                        transition:'background .15s, border-color .15s',
+                      }}>{emojify(opt)}</button>
+                  );
+                })}
+              </div>
+
+              <AnimatePresence>
+                {showResult && (
+                  <motion.div initial={{ opacity:0, height:0, marginTop:0 }} animate={{ opacity:1, height:'auto', marginTop:10 }} transition={{ duration:.25 }} style={{ overflow:'hidden' }}>
+                    <span style={{ fontFamily:'var(--atl-font-mono, ui-monospace, monospace)', fontSize:'12px', fontWeight:700, color:'#6B6A7B' }}>
+                      Actual: <span style={{ color: pass ? '#15803D' : '#DC2626' }}>{emojify(r.actual)}</span>
+                      {exp && <>{'  ·  '}expected {exp} {pass ? '=' : '≠'} actual</>}
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

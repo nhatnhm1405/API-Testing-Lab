@@ -4,6 +4,7 @@ import confetti from "canvas-confetti";
 import { TactileButton } from "./TactileButton";
 import { Zap, Star, Home, ArrowRight, Map, RotateCcw, AlertCircle, Lightbulb } from "lucide-react";
 import { findLesson, getLessonPrompt } from "../data/courseData";
+import { Emoji, emojify } from "../lib/emoji";
 import { playSound } from "../lib/sound";
 
 type View = 'home' | 'path' | 'lesson' | 'result' | 'skill-check' | 'diagrams' | 'simulator' | 'review';
@@ -87,7 +88,7 @@ export function ResultScreen({ onNavigate, moduleNumber, moduleTitle, isLastModu
         {/* Heading */}
         <motion.div initial={{ opacity:0,y:16 }} animate={{ opacity:1,y:0 }} transition={{ duration:.4,delay:.4 }} style={{ textAlign:'center',marginBottom:28 }}>
           <h1 style={{ fontFamily:'var(--atl-font-display)',fontSize:'32px',fontWeight:800,color:'#1C1B2A',margin:'0 0 8px',letterSpacing:'-0.03em' }}>
-            {isLastModule ? 'Course complete! 🏆' : score===total ? 'Perfect! 🎉' : pct>=75 ? 'Great job! 🌟' : 'Keep going! 💪'}
+            {emojify(isLastModule ? 'Course complete! 🏆' : score===total ? 'Perfect! 🎉' : pct>=75 ? 'Great job! 🌟' : 'Keep going! 💪')}
           </h1>
           <p style={{ fontFamily:'var(--atl-font-body)',fontSize:'16px',color:'#6B6A7B',margin:0,fontWeight:500 }}>
             You completed Module {moduleNumber} · {moduleTitle}
@@ -97,15 +98,21 @@ export function ResultScreen({ onNavigate, moduleNumber, moduleTitle, isLastModu
         {/* Score card */}
         <motion.div initial={{ opacity:0,scale:.9 }} animate={{ opacity:1,scale:1 }} transition={{ duration:.4,delay:.5,type:'spring',stiffness:400,damping:28 }}
           style={{ background:'#FFF',borderRadius:24,padding:28,width:'100%',boxSizing:'border-box',border:'1.5px solid #ECE8E1',boxShadow:'0 2px 4px rgba(28,27,42,.05),0 16px 48px rgba(28,27,42,.08)',marginBottom:20 }}>
-          <div style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:24 }}>
-            <span style={{ fontFamily:'var(--atl-font-display)',fontSize:'56px',fontWeight:800,color:'#1C1B2A',lineHeight:1,letterSpacing:'-0.04em' }}>{displayScore}</span>
-            <span style={{ fontFamily:'var(--atl-font-display)',fontSize:'28px',fontWeight:800,color:'#A7A3AD',lineHeight:1 }}>/{total}</span>
+          <div style={{ textAlign:'center',marginBottom:24 }}>
+            <div style={{ fontFamily:'var(--atl-font-body)',fontSize:'11px',fontWeight:800,letterSpacing:'.12em',textTransform:'uppercase',color:score===total?'#16A34A':'#D97706',marginBottom:8 }}>
+              ✓ Module test report
+            </div>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:8 }}>
+              <span style={{ fontFamily:'var(--atl-font-display)',fontSize:'56px',fontWeight:800,color:'#1C1B2A',lineHeight:1,letterSpacing:'-0.04em' }}>{displayScore}</span>
+              <span style={{ fontFamily:'var(--atl-font-display)',fontSize:'28px',fontWeight:800,color:'#A7A3AD',lineHeight:1 }}>/{total}</span>
+            </div>
+            <div style={{ fontFamily:'var(--atl-font-body)',fontSize:'13px',fontWeight:600,color:'#A7A3AD',marginTop:6 }}>tests passed</div>
           </div>
           <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12 }}>
             {[
-              { icon:<Star size={15} color="#F59E0B" fill="#F59E0B"/>, label:'Score',       value:`${pct}%`,       color:'#D97706' },
+              { icon:<Star size={15} color="#F59E0B" fill="#F59E0B"/>, label:'Pass rate',   value:`${pct}%`,       color:'#D97706' },
               { icon:<Zap  size={15} color="#B9E534" fill="#B9E534" strokeWidth={0}/>, label:'XP earned',  value:`+${displayXP}`, color:'#5A700A' },
-              { icon:<span style={{ fontSize:14 }}>🔥</span>,             label:'Streak',     value:`${streak}`,     color:'#EA580C' },
+              { icon:<Emoji e="🔥" size={14} />,             label:'Streak',     value:`${streak}`,     color:'#EA580C' },
             ].map(st => (
               <div key={st.label} style={{ background:'#FAF8F5',borderRadius:14,padding:12,textAlign:'center',border:'1px solid #F2EFEA' }}>
                 <div style={{ marginBottom:4,display:'flex',justifyContent:'center' }}>{st.icon}</div>
@@ -120,7 +127,7 @@ export function ResultScreen({ onNavigate, moduleNumber, moduleTitle, isLastModu
         {!isLastModule && (
           <motion.div initial={{ opacity:0,y:12 }} animate={{ opacity:1,y:0 }} transition={{ duration:.4,delay:.65 }}
             style={{ width:'100%',background:'linear-gradient(135deg,#EEF2FF,#F5F3FF)',border:'1.5px solid #C7D2FE',borderRadius:16,padding:'14px 18px',display:'flex',alignItems:'center',gap:12,marginBottom:28 }}>
-            <span style={{ fontSize:22 }}>✅</span>
+            <Emoji e="✅" size={22} />
             <div>
               <p style={{ fontFamily:'var(--atl-font-body)',fontSize:'14px',fontWeight:700,color:'#3730A3',margin:'0 0 2px' }}>Skill Check unlocked!</p>
               <p style={{ fontFamily:'var(--atl-font-body)',fontSize:'12px',fontWeight:500,color:'#6366F1',margin:0 }}>Test your Module {moduleNumber} knowledge</p>

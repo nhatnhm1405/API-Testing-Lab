@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { StoryFlow, Beat } from "./StoryFlow";
+import { Emoji, emojify } from "../lib/emoji";
 
 // ── Phở-restaurant analogy of an API round-trip ───────────────────
 // The everyday food-ordering story. The API takeaway is revealed only
@@ -98,8 +99,8 @@ function Station({ s, active }: { s: typeof STATIONS[number]; active: boolean })
       <motion.div
         animate={active ? { scale:[1,1.12,1], boxShadow:[`0 4px 14px ${s.color}22`,`0 8px 22px ${s.color}55`,`0 4px 14px ${s.color}22`] } : { scale:1 }}
         transition={active ? { duration:.9, repeat:Infinity, ease:'easeInOut' } : { duration:.3 }}
-        style={{ width:52, height:52, borderRadius:16, background:'#FFF', border:`2px solid ${active ? s.color : s.color+'40'}`, boxShadow:`0 4px 14px ${s.color}22`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:26 }}>
-        {s.emoji}
+        style={{ width:52, height:52, borderRadius:16, background:'#FFF', border:`2px solid ${active ? s.color : s.color+'40'}`, boxShadow:`0 4px 14px ${s.color}22`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <Emoji e={s.emoji} size={26} />
       </motion.div>
       <span style={{ fontFamily:'var(--atl-font-display)', fontSize:'13px', fontWeight:800, color:'#1C1B2A', lineHeight:1 }}>{s.title}</span>
       <span style={{ fontFamily:'var(--atl-font-body)', fontSize:'10px', fontWeight:600, color:s.color }}>{s.sub}</span>
@@ -133,7 +134,7 @@ function Scene({ running }: { running: boolean }) {
             transition={{ duration:.25 }}
             style={{ position:'absolute', left:LEFTS[cur.pos], top:8, maxWidth:190, zIndex:5, pointerEvents:'none' }}>
             <div style={{ position:'relative', background:'#FFF', border:`1.5px solid ${cur.tone}40`, borderRadius:12, padding:'7px 12px', boxShadow:`0 6px 18px ${cur.tone}1F`, textAlign:'center' }}>
-              <span style={{ fontFamily:'var(--atl-font-body)', fontSize:'12px', fontWeight:600, color:'#1C1B2A', lineHeight:1.35, whiteSpace:'nowrap' }}>{cur.bubble}</span>
+              <span style={{ fontFamily:'var(--atl-font-body)', fontSize:'12px', fontWeight:600, color:'#1C1B2A', lineHeight:1.35, whiteSpace:'nowrap' }}>{emojify(cur.bubble)}</span>
               {/* tail */}
               <div style={{ position:'absolute', left:'50%', bottom:-6, transform:'translateX(-50%) rotate(45deg)', width:10, height:10, background:'#FFF', borderRight:`1.5px solid ${cur.tone}40`, borderBottom:`1.5px solid ${cur.tone}40` }} />
             </div>
@@ -149,8 +150,8 @@ function Scene({ running }: { running: boolean }) {
             animate={{ opacity:1, scale:1, left:LEFTS[cur.pos], x:'-50%' }}
             exit={{ opacity:0, scale:.5, x:'-50%' }}
             transition={{ left:{ duration:.75, ease:'easeInOut' }, default:{ duration:.3 } }}
-            style={{ position:'absolute', top:72, fontSize:24, zIndex:3, pointerEvents:'none', filter:`drop-shadow(0 4px 8px ${cur.tone}4D)` }}>
-            {cur.emoji}
+            style={{ position:'absolute', top:72, zIndex:3, pointerEvents:'none', filter:`drop-shadow(0 4px 8px ${cur.tone}4D)` }}>
+            <Emoji e={cur.emoji} size={24} />
           </motion.div>
         )}
       </AnimatePresence>
